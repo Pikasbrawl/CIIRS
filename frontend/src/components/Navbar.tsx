@@ -46,7 +46,6 @@ export const Navbar: React.FC = () => {
       { id: 'citizen-reports-review', label: 'Citizen Reports Review', icon: <ClipboardList className="w-4 h-4" />, badge: 2 },
       { id: 'incident-audit', label: 'Incident Audit & Scene Reports', icon: <ShieldAlert className="w-4 h-4" /> },
       { id: 'emergency-response', label: 'Emergency Coordination', icon: <Siren className="w-4 h-4" /> },
-      { id: 'vehicle-intelligence', label: 'Vehicle Intelligence', icon: <Car className="w-4 h-4" /> },
       { id: 'plate-search', label: 'Number Plate Search', icon: <FileSearch className="w-4 h-4" /> },
       { id: 'analytics', label: 'Predictive Analytics', icon: <LineChart className="w-4 h-4" /> },
       { id: 'alerts-events', label: 'Alerts & Events', icon: <BellRing className="w-4 h-4" />, badge: pendingIncidentsCount },

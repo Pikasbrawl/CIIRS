@@ -29,10 +29,32 @@ export interface Camera {
   last_ping: string;
 }
 
+export interface VehicleChallan {
+  id: string;
+  challan_number: string;
+  violation: string;
+  location: string;
+  date: string;
+  amount: number;
+  status: 'PENDING' | 'OVERDUE' | 'PAID';
+}
+
+export interface StolenRecord {
+  is_stolen: boolean;
+  fir_number?: string;
+  police_station?: string;
+  theft_date?: string;
+  complainant_name?: string;
+  investigating_officer?: string;
+  status?: string;
+}
+
 export interface VehicleDetection {
   id: number;
   plate_number: string;
   vehicle_type: string;
+  vehicle_make_model?: string;
+  vehicle_color?: string;
   camera_id: string;
   camera_name?: string;
   location: string;
@@ -42,6 +64,16 @@ export interface VehicleDetection {
   is_watchlist: boolean;
   watchlist_reason?: string;
   image_url?: string;
+  is_stolen?: boolean;
+  stolen_details?: StolenRecord;
+  pending_challans_count?: number;
+  pending_challans_total?: number;
+  challans?: VehicleChallan[];
+  owner_name?: string;
+  registration_date?: string;
+  fuel_type?: string;
+  insurance_status?: string;
+  rto_office?: string;
 }
 
 export interface CitizenEvidenceAttachment {

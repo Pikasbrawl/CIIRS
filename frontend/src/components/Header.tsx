@@ -55,7 +55,7 @@ export const Header: React.FC = () => {
     if (q.includes('cam') || q.includes('sector') || q.includes('camera')) {
       setActiveTab('camera-management');
     } else if (q.includes('ch01') || q.includes('pb') || q.includes('plate') || q.includes('vehicle') || q.includes('car')) {
-      setActiveTab('vehicle-intelligence');
+      setActiveTab('plate-search');
     } else {
       setActiveTab('alerts-events');
     }

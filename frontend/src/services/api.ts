@@ -362,14 +362,16 @@ export const api = {
   },
 
   // Vehicle Intelligence & ANPR
-  getRecentVehicles: async (limit: number = 10): Promise<VehicleDetection[]> => {
+  getRecentVehicles: async (limit: number = 20): Promise<VehicleDetection[]> => {
     const res = await fetch(`${BASE_URL}/vehicles/detections?limit=${limit}`);
-    return res.json();
+    const data = await res.json();
+    return Array.isArray(data) ? data : [];
   },
 
   searchVehicles: async (plate: string = ''): Promise<VehicleDetection[]> => {
-    const res = await fetch(`${BASE_URL}/vehicles/search?plate=${encodeURIComponent(plate)}`);
-    return res.json();
+    const res = await fetch(`${BASE_URL}/vehicles/search?plate=${encodeURIComponent(plate)}&query=${encodeURIComponent(plate)}`);
+    const data = await res.json();
+    return Array.isArray(data) ? data : [];
   },
 
   getLatestVehicle: async (): Promise<VehicleDetection> => {

@@ -581,7 +581,7 @@ export const Dashboard: React.FC = () => {
 
         {/* Card 6: Vehicles Detected Today */}
         <div 
-          onClick={() => setActiveTab('vehicle-intelligence')}
+          onClick={() => setActiveTab('plate-search')}
           className="bg-white border border-[#E1EAF2] rounded-xl p-3.5 shadow-sm hover:shadow-md transition cursor-pointer flex items-center space-x-3"
         >
           <div className="w-10 h-10 rounded-full bg-[#EBF3FC] text-[#2463A6] flex items-center justify-center shrink-0">
@@ -891,7 +891,7 @@ export const Dashboard: React.FC = () => {
 
             {/* Alert 2: Watchlist Vehicle (ANPR) */}
             <div 
-              onClick={() => setActiveTab('vehicle-intelligence')}
+              onClick={() => setActiveTab('plate-search')}
               className="p-2.5 rounded-lg border border-[#FEF3C7] bg-[#FFFDF5] hover:bg-[#FEF9C3] transition cursor-pointer flex items-center space-x-2.5 shadow-xs"
             >
               <div className="w-11 h-11 rounded-md bg-slate-900 shrink-0 overflow-hidden relative border border-amber-200 shadow-xs">
@@ -1200,10 +1200,10 @@ export const Dashboard: React.FC = () => {
                 </div>
                 <div>
                   <h2 className="text-sm font-bold text-[#172F50] leading-none">
-                    Vehicle Intelligence (ANPR)
+                    Number Plate Search (ANPR)
                   </h2>
                   <p className="text-[10px] text-[#8291A2] mt-0.5">
-                    Real-time number plate detection and search
+                    Real-time number plate detection, challans and stolen alerts
                   </p>
                 </div>
               </div>
@@ -1268,7 +1268,7 @@ export const Dashboard: React.FC = () => {
 
                 <div className="flex items-center space-x-2 mt-2">
                   <button 
-                    onClick={() => setActiveTab('vehicle-intelligence')}
+                    onClick={() => setActiveTab('plate-search')}
                     className="px-2.5 py-1 bg-[#2463A6] hover:bg-[#1B4E85] text-white text-[11px] font-semibold rounded shadow-sm transition"
                   >
                     Check Details
@@ -1289,7 +1289,7 @@ export const Dashboard: React.FC = () => {
             <div className="flex items-center justify-between text-xs font-bold text-[#172F50] mb-1">
               <span>Recent Detections</span>
               <button 
-                onClick={() => setActiveTab('vehicle-intelligence')}
+                onClick={() => setActiveTab('plate-search')}
                 className="text-[11px] font-semibold text-[#2463A6] hover:underline"
               >
                 View All
