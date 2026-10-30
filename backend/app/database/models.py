@@ -240,6 +240,15 @@ class ResponseRequest(Base):
     assigned_unit_id = Column(Integer, ForeignKey("response_units.id"), nullable=True)
     eta_minutes = Column(Float, default=4.5)
     triage_notes = Column(Text, nullable=True)
+    
+    # Live Incident Verification Fields
+    verification_status = Column(String(50), default="AWAITING_REVIEW") # AWAITING_REVIEW, VERIFIED, FALSE_ALARM, NEEDS_REVIEW, FOOTAGE_REQUESTED, ESCALATED
+    verification_notes = Column(Text, nullable=True)
+    verified_by = Column(String(100), nullable=True)
+    verified_at = Column(DateTime, nullable=True)
+    reviewed_camera_ids = Column(String(255), nullable=True)
+    verification_history = Column(JSON, default=list)
+    
     created_at = Column(DateTime, default=datetime.utcnow)
     
     incident = relationship("Incident", back_populates="response_requests")

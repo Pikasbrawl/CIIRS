@@ -155,6 +155,30 @@ export interface ResponseRequest {
   assigned_unit_callsign?: string;
   eta_minutes: number;
   triage_notes?: string;
+  verification_status?: 'AWAITING_REVIEW' | 'VERIFIED' | 'FALSE_ALARM' | 'NEEDS_REVIEW' | 'FOOTAGE_REQUESTED' | 'ESCALATED' | string;
+  verification_notes?: string;
+  verified_by?: string;
+  verified_at?: string;
+  reviewed_camera_ids?: string;
+  verification_history?: Array<{
+    action: string;
+    verification_status: string;
+    reason: string;
+    officer_name?: string;
+    officer_role?: string;
+    badge_number?: string;
+    timestamp: string;
+    reviewed_cameras?: string;
+    video_source_type?: string;
+  }>;
+  incident_number?: string;
+  incident_category?: string;
+  incident_severity?: string;
+  incident_status?: string;
+  incident_address?: string;
+  incident_latitude?: number;
+  incident_longitude?: number;
+  incident_timestamp?: string;
   created_at: string;
 }
 

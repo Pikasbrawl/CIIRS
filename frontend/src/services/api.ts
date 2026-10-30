@@ -185,6 +185,26 @@ export const api = {
     return res.json();
   },
 
+  verifyEmergencyIncident: async (
+    requestId: number, 
+    payload: { 
+      action: string; 
+      reason: string; 
+      officer_name?: string; 
+      officer_role?: string; 
+      badge_number?: string; 
+      reviewed_camera_ids?: string; 
+      video_source_type?: string 
+    }
+  ) => {
+    const res = await fetch(`${BASE_URL}/emergency/requests/${requestId}/verify`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    return res.json();
+  },
+
   // GIS
   getGISLayers: async () => {
     const res = await fetch(`${BASE_URL}/gis/layers`);

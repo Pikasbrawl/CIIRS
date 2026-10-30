@@ -198,6 +198,25 @@ class ResponseRequestOut(BaseModel):
     assigned_unit_callsign: Optional[str] = None
     eta_minutes: float
     triage_notes: Optional[str] = None
+    
+    # Live Incident Verification Fields
+    verification_status: Optional[str] = "AWAITING_REVIEW"
+    verification_notes: Optional[str] = None
+    verified_by: Optional[str] = None
+    verified_at: Optional[datetime] = None
+    reviewed_camera_ids: Optional[str] = None
+    verification_history: Optional[list] = []
+    
+    # Linked Incident Geolocation & Classification
+    incident_number: Optional[str] = None
+    incident_category: Optional[str] = None
+    incident_severity: Optional[str] = None
+    incident_status: Optional[str] = None
+    incident_address: Optional[str] = None
+    incident_latitude: Optional[float] = None
+    incident_longitude: Optional[float] = None
+    incident_timestamp: Optional[str] = None
+    
     created_at: datetime
     class Config:
         from_attributes = True
