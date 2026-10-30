@@ -8,7 +8,7 @@ export interface CameraFeedTarget {
   trackId: string;
   label: string;
   confidence: number;
-  category: 'PERSON' | 'CAR' | 'BUS' | 'SUV' | 'AUTO' | 'MOTORCYCLE';
+  category: 'PERSON' | 'CAR' | 'BUS' | 'SUV' | 'AUTO' | 'MOTORCYCLE' | 'UNWANTED_OBJECT' | 'ACCIDENT';
   color: string;
   getBox: (t: number) => { x: number; y: number; w: number; h: number; status: string };
 }
@@ -31,13 +31,13 @@ export interface CameraFeedConfig {
 
 // 4 Distinct Camera Feed Setups with Mathematical Time-Aligned Trajectories (0 to 8s loop)
 export const CAMERA_FEEDS: CameraFeedConfig[] = [
-  // CAMERA 1: CAM-17-001 — Pedestrian Detection
+  // CAMERA 1: CAM-17-001 — Pedestrian Detection (8 Persons)
   {
     id: 'CAM-17-001',
     name: 'Sector 17 - Plaza',
-    sector: 'Sector 17 Commercial Promenade',
-    sceneType: 'Pedestrian Detection & Movement',
-    videoUrl: '/static/cctv_cam_17_001.mp4',
+    sector: 'Sector 17 Commercial Promenade & Crosswalk',
+    sceneType: 'Pedestrian Street & Crosswalk Detection',
+    videoUrl: '/static/real_pedestrians_8_persons.mp4',
     hudText: 'CAM-17-001 | PERSONS DETECTED: 08 | DEMO AI VISUALISATION',
     fps: 25,
     resolution: '640x360',
@@ -76,7 +76,7 @@ export const CAMERA_FEEDS: CameraFeedConfig[] = [
         color: '#06B6D4',
         getBox: (t) => {
           const px = ((140 + 28 * t) % 720) - 40;
-          return { x: px - 13, y: 280 - 32, w: 26, h: 64, status: 'Strolling Promenade' };
+          return { x: px - 13, y: 280 - 32, w: 26, h: 64, status: 'Crossing Zebra Line' };
         }
       },
       {
@@ -87,7 +87,7 @@ export const CAMERA_FEEDS: CameraFeedConfig[] = [
         color: '#06B6D4',
         getBox: (t) => {
           const px = ((-20 + 48 * t) % 720) - 40;
-          return { x: px - 12, y: 216 - 27, w: 24, h: 54, status: 'Brisk Walk' };
+          return { x: px - 12, y: 216 - 27, w: 24, h: 54, status: 'Brisk Walk North' };
         }
       },
       {
@@ -109,7 +109,7 @@ export const CAMERA_FEEDS: CameraFeedConfig[] = [
         color: '#06B6D4',
         getBox: (t) => {
           const px = ((240 + 32 * t) % 720) - 40;
-          return { x: px - 10, y: 187 - 23, w: 20, h: 46, status: 'Near Façade Corridor' };
+          return { x: px - 10, y: 187 - 23, w: 20, h: 46, status: 'Sidewalk Approach' };
         }
       },
       {
@@ -120,7 +120,7 @@ export const CAMERA_FEEDS: CameraFeedConfig[] = [
         color: '#06B6D4',
         getBox: (t) => {
           const px = 640 - (((620 - 30 * t) % 720) - 40);
-          return { x: px - 12, y: 252 - 29, w: 24, h: 58, status: 'Crossing Promenade' };
+          return { x: px - 12, y: 252 - 29, w: 24, h: 58, status: 'Crossing Walkway' };
         }
       },
       {
@@ -131,19 +131,19 @@ export const CAMERA_FEEDS: CameraFeedConfig[] = [
         color: '#06B6D4',
         getBox: (t) => {
           const px = ((310 + 20 * t) % 720) - 40;
-          return { x: px - 10, y: 194 - 22, w: 20, h: 44, status: 'Strolling North' };
+          return { x: px - 10, y: 194 - 22, w: 20, h: 44, status: 'Pedestrian Stroll' };
         }
       }
     ]
   },
 
-  // CAMERA 2: CAM-22-003 — Road Traffic & Vehicles
+  // CAMERA 2: CAM-22-003 — Road Traffic & Vehicles (12 Vehicles)
   {
     id: 'CAM-22-003',
     name: 'Sector 22 - Market',
-    sector: 'Sector 22 Market Avenue',
-    sceneType: 'Road Traffic & Vehicle Detection',
-    videoUrl: '/static/cctv_cam_22_003.mp4',
+    sector: 'Sector 22 Market Avenue & Highway',
+    sceneType: 'Road Traffic & Multi-Lane Flow',
+    videoUrl: '/static/real_traffic_12_vehicles.mp4',
     hudText: 'CAM-22-003 | VEHICLES DETECTED: 12 | DEMO AI VISUALISATION',
     fps: 25,
     resolution: '640x360',
@@ -171,7 +171,7 @@ export const CAMERA_FEEDS: CameraFeedConfig[] = [
         color: '#3B82F6',
         getBox: (t) => {
           const px = ((-40 + 45 * t) % 780) - 70;
-          return { x: px - 52, y: 137 - 21, w: 104, h: 42, status: 'CTU Public Transit (40 km/h)' };
+          return { x: px - 52, y: 137 - 21, w: 104, h: 42, status: 'CTU Transit Bus (40 km/h)' };
         }
       },
       {
@@ -182,7 +182,7 @@ export const CAMERA_FEEDS: CameraFeedConfig[] = [
         color: '#10B981',
         getBox: (t) => {
           const px = ((260 + 60 * t) % 780) - 70;
-          return { x: px - 29, y: 169 - 15, w: 58, h: 30, status: 'Cruising Lane 1' };
+          return { x: px - 29, y: 169 - 15, w: 58, h: 30, status: 'Lane 1 Flow' };
         }
       },
       {
@@ -215,7 +215,7 @@ export const CAMERA_FEEDS: CameraFeedConfig[] = [
         color: '#10B981',
         getBox: (t) => {
           const px = 640 - (((320 - 68 * t) % 780) - 70);
-          return { x: px - 30, y: 255 - 16, w: 60, h: 32, status: 'Overtaking Maneuver' };
+          return { x: px - 30, y: 255 - 16, w: 60, h: 32, status: 'Lane 2 Cruise' };
         }
       },
       {
@@ -237,7 +237,7 @@ export const CAMERA_FEEDS: CameraFeedConfig[] = [
         color: '#10B981',
         getBox: (t) => {
           const px = ((480 + 58 * t) % 780) - 70;
-          return { x: px - 30, y: 165 - 16, w: 60, h: 32, status: 'Following Distance Normal' };
+          return { x: px - 30, y: 165 - 16, w: 60, h: 32, status: 'Maintaining Distance' };
         }
       },
       {
@@ -248,7 +248,7 @@ export const CAMERA_FEEDS: CameraFeedConfig[] = [
         color: '#3B82F6',
         getBox: (t) => {
           const px = 640 - (((190 - 42 * t) % 780) - 70);
-          return { x: px - 49, y: 306 - 20, w: 98, h: 40, status: 'Approaching Stop' };
+          return { x: px - 49, y: 306 - 20, w: 98, h: 40, status: 'Express Route 22' };
         }
       },
       {
@@ -287,198 +287,113 @@ export const CAMERA_FEEDS: CameraFeedConfig[] = [
     ]
   },
 
-  // CAMERA 3: CAM-35-002 — Public Space Activity
+  // CAMERA 3: CAM-35-002 — Unwanted Objects in Camera (Unattended Bag)
   {
     id: 'CAM-35-002',
     name: 'Sector 35 - Roundabout',
-    sector: 'Sector 35 Rotary & Public Concourse',
-    sceneType: 'Public Space Activity & Pedestrian Crossings',
-    videoUrl: '/static/cctv_cam_35_002.mp4',
-    hudText: 'CAM-35-002 | OBJECTS DETECTED: 06 | DEMO AI VISUALISATION',
+    sector: 'Sector 35 Rotary & Concourse Walkway',
+    sceneType: 'Unwanted Object & Unattended Bag Detection',
+    videoUrl: '/static/real_unattended_object_cctv.mp4',
+    hudText: 'CAM-35-002 | UNWANTED OBJECT DETECTED | DEMO AI VISUALISATION',
     fps: 25,
     resolution: '640x360',
     lat: 30.7210,
     lon: 76.7620,
-    objectCountLabel: '6 Entities Detected (4 Pedestrians, 2 Vehicles)',
-    primaryColor: '#0EA5E9', // Sky Blue
+    objectCountLabel: 'Alert: Unwanted Object (Unattended Bag)',
+    primaryColor: '#EF4444', // Red Alert
     targets: [
       {
         trackId: 'TRK-301',
-        label: 'PERSON 01',
-        confidence: 95,
-        category: 'PERSON',
-        color: '#0EA5E9',
-        getBox: (t) => {
-          const px = 320 + Math.sin(t * 1.5) * 30;
-          return { x: px - 10, y: 90 - 22, w: 20, h: 44, status: 'Crossing Zebra Cross' };
+        label: 'UNWANTED OBJECT: BAG',
+        confidence: 96,
+        category: 'UNWANTED_OBJECT',
+        color: '#EF4444',
+        getBox: () => {
+          return { x: 292, y: 200, w: 52, h: 44, status: 'Stationary > 180s (Unattended Luggage)' };
         }
       },
       {
         trackId: 'TRK-302',
-        label: 'PERSON 02',
-        confidence: 92,
+        label: 'PERSON 01 (DEPARTING)',
+        confidence: 93,
         category: 'PERSON',
         color: '#0EA5E9',
         getBox: (t) => {
-          const px = (80 + t * 25) % 256;
-          return { x: px - 11, y: 288 - 24, w: 22, h: 48, status: 'Footpath Movement' };
+          const px = 180 + t * 16;
+          return { x: px, y: 142, w: 24, h: 60, status: 'Departing Concourse Corridor' };
         }
       },
       {
         trackId: 'TRK-303',
-        label: 'PERSON 03',
-        confidence: 94,
-        category: 'PERSON',
-        color: '#0EA5E9',
-        getBox: () => {
-          return { x: 565 - 10, y: 172 - 22, w: 20, h: 44, status: 'Stationary at Transit Pavilion' };
-        }
-      },
-      {
-        trackId: 'TRK-304',
-        label: 'CAR 01',
-        confidence: 97,
-        category: 'CAR',
-        color: '#10B981',
-        getBox: (t) => {
-          const ang = t * 0.75;
-          const cx = 320 + Math.cos(ang) * 110;
-          const cy = 198 + Math.sin(ang) * 77;
-          return { x: cx - 25, y: cy - 14, w: 50, h: 28, status: 'Navigating Rotary' };
-        }
-      },
-      {
-        trackId: 'TRK-305',
-        label: 'CAR 02',
-        confidence: 96,
-        category: 'CAR',
-        color: '#10B981',
-        getBox: (t) => {
-          const ang = t * 0.75 + 2.8;
-          const cx = 320 + Math.cos(ang) * 110;
-          const cy = 198 + Math.sin(ang) * 77;
-          return { x: cx - 26, y: cy - 15, w: 52, h: 30, status: 'Navigating Rotary' };
-        }
-      },
-      {
-        trackId: 'TRK-306',
-        label: 'PERSON 04',
+        label: 'PERSON 02 (PEDESTRIAN)',
         confidence: 91,
         category: 'PERSON',
         color: '#0EA5E9',
         getBox: (t) => {
-          const ang = t * 0.5 + 1.2;
-          const px = 320 + Math.cos(ang) * 45;
-          const py = 198 + Math.sin(ang) * 35;
-          return { x: px - 9, y: py - 20, w: 18, h: 40, status: 'Plaza Greenery Stroll' };
+          const px = 450 - t * 15;
+          return { x: px, y: 154, w: 22, h: 56, status: 'Passerby (2.8m Separation)' };
+        }
+      },
+      {
+        trackId: 'TRK-304',
+        label: 'PERSON 03 (PEDESTRIAN)',
+        confidence: 89,
+        category: 'PERSON',
+        color: '#0EA5E9',
+        getBox: (t) => {
+          const px = 540 - t * 9;
+          return { x: px, y: 162, w: 22, h: 52, status: 'Transit Approach Queue' };
         }
       }
     ]
   },
 
-  // CAMERA 4: CAM-43-001 — Parking & Vehicle Monitoring
+  // CAMERA 4: CAM-43-001 — Vehicle Accident Detection
   {
     id: 'CAM-43-001',
-    name: 'Sector 43 - Parking',
-    sector: 'Sector 43 ISBT Terminal Parking',
-    sceneType: 'Parking Facility & Perimeter Monitoring',
-    videoUrl: '/static/cctv_cam_43_001.mp4',
-    hudText: 'CAM-43-001 | VEHICLES DETECTED: 09 | DEMO AI VISUALISATION',
+    name: 'Sector 43 - Transit',
+    sector: 'Sector 43 ISBT Transit Terminal & Intersection',
+    sceneType: 'Vehicle Accident & Collision Monitoring',
+    videoUrl: '/static/real_vehicle_accident_cctv.mp4',
+    hudText: 'CAM-43-001 | VEHICLE ACCIDENT DETECTED | DEMO AI VISUALISATION',
     fps: 25,
     resolution: '640x360',
     lat: 30.7180,
     lon: 76.7460,
-    objectCountLabel: '9 Vehicles & 1 Pedestrian',
-    primaryColor: '#6366F1', // Indigo
+    objectCountLabel: 'CRITICAL: Vehicle Accident Detected',
+    primaryColor: '#EF4444', // Red Alert
     targets: [
       {
         trackId: 'TRK-401',
-        label: 'CAR 01',
+        label: 'CRITICAL: ROAD ACCIDENT',
         confidence: 98,
-        category: 'CAR',
-        color: '#10B981',
-        getBox: () => ({ x: 51, y: 141, w: 58, h: 34, status: 'Parked in Bay A-1' })
+        category: 'ACCIDENT',
+        color: '#EF4444',
+        getBox: () => ({ x: 232, y: 138, w: 176, h: 112, status: 'IMPACT EVENT DETECTED — EMERGENCY DISPATCH' })
       },
       {
         trackId: 'TRK-402',
-        label: 'SUV 01',
-        confidence: 97,
-        category: 'SUV',
-        color: '#06B6D4',
-        getBox: () => ({ x: 124, y: 140, w: 62, h: 36, status: 'Parked in Bay A-2' })
+        label: 'VEHICLE A (COLLIDED)',
+        confidence: 96,
+        category: 'CAR',
+        color: '#F59E0B',
+        getBox: () => ({ x: 222, y: 148, w: 84, h: 56, status: 'Sudden Deceleration / Impact Point' })
       },
       {
         trackId: 'TRK-403',
-        label: 'CAR 02',
-        confidence: 96,
-        category: 'CAR',
-        color: '#10B981',
-        getBox: () => ({ x: 202, y: 141, w: 56, h: 33, status: 'Parked in Bay A-3' })
+        label: 'VEHICLE B (COLLIDED)',
+        confidence: 95,
+        category: 'SUV',
+        color: '#F59E0B',
+        getBox: () => ({ x: 294, y: 158, w: 92, h: 62, status: 'Impacted Lateral Frame' })
       },
       {
         trackId: 'TRK-404',
-        label: 'CAR 03',
-        confidence: 95,
-        category: 'CAR',
-        color: '#10B981',
-        getBox: () => ({ x: 350, y: 141, w: 60, h: 34, status: 'Parked in Bay A-5' })
-      },
-      {
-        trackId: 'TRK-405',
-        label: 'SUV 02',
-        confidence: 96,
-        category: 'SUV',
-        color: '#06B6D4',
-        getBox: () => ({ x: 49, y: 266, w: 62, h: 35, status: 'Parked in Bay B-1' })
-      },
-      {
-        trackId: 'TRK-406',
-        label: 'CAR 04',
-        confidence: 94,
-        category: 'CAR',
-        color: '#10B981',
-        getBox: () => ({ x: 200, y: 267, w: 60, h: 34, status: 'Parked in Bay B-3' })
-      },
-      {
-        trackId: 'TRK-407',
-        label: 'MOTO 01',
-        confidence: 93,
-        category: 'MOTORCYCLE',
-        color: '#A855F7',
-        getBox: () => ({ x: 366, y: 274, w: 28, h: 20, status: 'Parked in Bay B-5' })
-      },
-      {
-        trackId: 'TRK-408',
-        label: 'CAR 05',
-        confidence: 98,
-        category: 'CAR',
-        color: '#10B981',
-        getBox: (t) => {
-          const px = ((t * 52) % 760) - 60;
-          return { x: px - 29, y: 219 - 16, w: 58, h: 32, status: 'Moving in Aisle (15 km/h)' };
-        }
-      },
-      {
-        trackId: 'TRK-409',
-        label: 'SUV 03',
-        confidence: 95,
-        category: 'SUV',
-        color: '#06B6D4',
-        getBox: (t) => {
-          const px = 640 - ((t * 35) % 740);
-          return { x: px - 31, y: 234 - 17, w: 62, h: 34, status: 'Maneuvering to Bay B-2' };
-        }
-      },
-      {
-        trackId: 'TRK-410',
-        label: 'PERSON 01',
+        label: 'QUEUE TRAFFIC 01',
         confidence: 92,
-        category: 'PERSON',
-        color: '#F59E0B',
-        getBox: (t) => {
-          const px = 120 + t * 8;
-          return { x: px - 9, y: 187 - 21, w: 18, h: 42, status: 'Walking to Vehicle A-2' };
-        }
+        category: 'CAR',
+        color: '#3B82F6',
+        getBox: (t) => ({ x: 105 + (t * 4) % 15, y: 184, w: 68, h: 42, status: 'Slowing for Obstruction' })
       }
     ]
   }

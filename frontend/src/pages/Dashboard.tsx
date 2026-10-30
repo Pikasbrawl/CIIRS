@@ -42,6 +42,7 @@ export const Dashboard: React.FC = () => {
   const [isSearchingMap, setIsSearchingMap] = useState<boolean>(false);
   const [showMapSearchBox, setShowMapSearchBox] = useState<boolean>(false);
   const [mapSearchError, setMapSearchError] = useState<string | null>(null);
+  const [predictiveTimeWindow, setPredictiveTimeWindow] = useState<'24h' | '48h' | '7d'>('24h');
 
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
@@ -859,19 +860,25 @@ export const Dashboard: React.FC = () => {
             {/* Alert 1: Unattended Object */}
             <div 
               onClick={() => setActiveTab('alerts-events')}
-              className="p-2.5 rounded-lg border border-[#FEE2E2] bg-[#FFF8F8] hover:bg-[#FEECEC] transition cursor-pointer flex items-center space-x-2.5"
+              className="p-2.5 rounded-lg border border-[#FEE2E2] bg-[#FFF8F8] hover:bg-[#FEECEC] transition cursor-pointer flex items-center space-x-2.5 shadow-xs"
             >
-              <div className="w-10 h-10 rounded bg-slate-800 shrink-0 overflow-hidden relative flex items-center justify-center">
-                <div className="w-4 h-4 rounded-full bg-slate-600"></div>
-                <div className="w-2.5 h-3 bg-slate-400 absolute bottom-1"></div>
+              <div className="w-11 h-11 rounded-md bg-slate-900 shrink-0 overflow-hidden relative border border-red-200 shadow-xs">
+                <img 
+                  src="/static/alert_unattended_object.jpg" 
+                  alt="Unattended Object Alert" 
+                  className="w-full h-full object-cover" 
+                />
+                <span className="absolute bottom-0 right-0 bg-red-600/90 text-[7px] text-white px-1 font-mono font-bold leading-tight">
+                  ALERT
+                </span>
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center space-x-1">
                   <AlertTriangle className="w-3.5 h-3.5 text-[#E34D59] shrink-0" />
-                  <span className="text-xs font-bold text-[#172F50] truncate">Unattended Object</span>
+                  <span className="text-xs font-bold text-[#172F50] truncate">Unattended Object (Bag)</span>
                 </div>
                 <div className="text-[10px] text-[#526477] mt-0.5">
-                  CAM-22-003 • Sector 22
+                  CAM-35-002 • Sector 35 Walkway
                 </div>
                 <div className="text-[9px] text-[#8291A2]">
                   Today, 14:28:15
@@ -885,18 +892,25 @@ export const Dashboard: React.FC = () => {
             {/* Alert 2: Watchlist Vehicle (ANPR) */}
             <div 
               onClick={() => setActiveTab('vehicle-intelligence')}
-              className="p-2.5 rounded-lg border border-[#FEF3C7] bg-[#FFFDF5] hover:bg-[#FEF9C3] transition cursor-pointer flex items-center space-x-2.5"
+              className="p-2.5 rounded-lg border border-[#FEF3C7] bg-[#FFFDF5] hover:bg-[#FEF9C3] transition cursor-pointer flex items-center space-x-2.5 shadow-xs"
             >
-              <div className="w-10 h-10 rounded bg-slate-700 shrink-0 overflow-hidden flex items-center justify-center text-white">
-                <Car className="w-5 h-5 text-slate-300" />
+              <div className="w-11 h-11 rounded-md bg-slate-900 shrink-0 overflow-hidden relative border border-amber-200 shadow-xs">
+                <img 
+                  src="/static/alert_watchlist_anpr.jpg" 
+                  alt="Watchlist Vehicle ANPR Alert" 
+                  className="w-full h-full object-cover" 
+                />
+                <span className="absolute bottom-0 right-0 bg-amber-500/90 text-[7px] text-white px-1 font-mono font-bold leading-tight">
+                  ANPR
+                </span>
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center space-x-1">
-                  <AlertTriangle className="w-3.5 h-3.5 text-[#E34D59] shrink-0" />
+                  <AlertTriangle className="w-3.5 h-3.5 text-[#E5A12B] shrink-0" />
                   <span className="text-xs font-bold text-[#172F50] truncate">Watchlist Vehicle (ANPR)</span>
                 </div>
                 <div className="text-[10px] text-[#526477] mt-0.5">
-                  CAM-17-001 • Sector 17
+                  CAM-17-001 • Sector 17 Plaza
                 </div>
                 <div className="text-[9px] text-[#8291A2]">
                   Today, 14:25:40
@@ -910,18 +924,25 @@ export const Dashboard: React.FC = () => {
             {/* Alert 3: Suspicious Movement */}
             <div 
               onClick={() => setActiveTab('alerts-events')}
-              className="p-2.5 rounded-lg border border-[#FEF3C7] bg-[#FFFDF5] hover:bg-[#FEF9C3] transition cursor-pointer flex items-center space-x-2.5"
+              className="p-2.5 rounded-lg border border-[#FEF3C7] bg-[#FFFDF5] hover:bg-[#FEF9C3] transition cursor-pointer flex items-center space-x-2.5 shadow-xs"
             >
-              <div className="w-10 h-10 rounded bg-slate-800 shrink-0 overflow-hidden flex items-center justify-center text-slate-400">
-                <Eye className="w-4 h-4 text-slate-300" />
+              <div className="w-11 h-11 rounded-md bg-slate-900 shrink-0 overflow-hidden relative border border-blue-200 shadow-xs">
+                <img 
+                  src="/static/alert_suspicious_movement.jpg" 
+                  alt="Suspicious Rapid Movement Alert" 
+                  className="w-full h-full object-cover" 
+                />
+                <span className="absolute bottom-0 right-0 bg-blue-600/90 text-[7px] text-white px-1 font-mono font-bold leading-tight">
+                  KINETIC
+                </span>
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center space-x-1">
-                  <AlertTriangle className="w-3.5 h-3.5 text-[#E5A12B] shrink-0" />
-                  <span className="text-xs font-bold text-[#172F50] truncate">Suspicious Movement</span>
+                  <Eye className="w-3.5 h-3.5 text-[#2463A6] shrink-0" />
+                  <span className="text-xs font-bold text-[#172F50] truncate">Suspicious Rapid Movement</span>
                 </div>
                 <div className="text-[10px] text-[#526477] mt-0.5">
-                  CAM-35-002 • Sector 35
+                  CAM-22-003 • Sector 22 Market
                 </div>
                 <div className="text-[9px] text-[#8291A2]">
                   Today, 14:20:12
@@ -932,18 +953,50 @@ export const Dashboard: React.FC = () => {
               </span>
             </div>
 
-            {/* Alert 4: Camera Offline */}
+            {/* Alert 4: Vehicle Accident / Road Collision */}
+            <div 
+              onClick={() => setActiveTab('alerts-events')}
+              className="p-2.5 rounded-lg border border-[#FEE2E2] bg-[#FFF8F8] hover:bg-[#FEECEC] transition cursor-pointer flex items-center space-x-2.5 shadow-xs"
+            >
+              <div className="w-11 h-11 rounded-md bg-slate-900 shrink-0 overflow-hidden relative border border-red-300 shadow-xs">
+                <img 
+                  src="/static/alert_vehicle_accident.jpg" 
+                  alt="Vehicle Collision Alert" 
+                  className="w-full h-full object-cover" 
+                />
+                <span className="absolute bottom-0 right-0 bg-red-600 text-[7px] text-white px-1 font-mono font-bold leading-tight">
+                  CRITICAL
+                </span>
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center space-x-1">
+                  <AlertTriangle className="w-3.5 h-3.5 text-[#E34D59] shrink-0" />
+                  <span className="text-xs font-bold text-[#172F50] truncate">Vehicle Collision Incident</span>
+                </div>
+                <div className="text-[10px] text-[#526477] mt-0.5">
+                  CAM-43-001 • Sector 43 Transit
+                </div>
+                <div className="text-[9px] text-[#8291A2]">
+                  Today, 14:15:22
+                </div>
+              </div>
+              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded border border-[#E34D59]/40 text-[#E34D59] bg-white">
+                High
+              </span>
+            </div>
+
+            {/* Alert 5: Camera Offline */}
             <div 
               onClick={() => setActiveTab('camera-management')}
-              className="p-2.5 rounded-lg border border-[#E1EAF2] bg-[#F8FAFC] hover:bg-[#F1F5F9] transition cursor-pointer flex items-center space-x-2.5"
+              className="p-2.5 rounded-lg border border-[#E1EAF2] bg-[#F8FAFC] hover:bg-[#F1F5F9] transition cursor-pointer flex items-center space-x-2.5 shadow-xs"
             >
-              <div className="w-10 h-10 rounded bg-slate-200 shrink-0 flex items-center justify-center text-[#8795A5]">
-                <Video className="w-4 h-4" />
+              <div className="w-11 h-11 rounded-md bg-slate-200 shrink-0 flex items-center justify-center text-[#8795A5] border border-slate-300">
+                <Video className="w-5 h-5" />
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center space-x-1">
                   <Video className="w-3.5 h-3.5 text-[#8795A5] shrink-0" />
-                  <span className="text-xs font-bold text-[#172F50] truncate">Camera Offline</span>
+                  <span className="text-xs font-bold text-[#172F50] truncate">Camera Offline Signal</span>
                 </div>
                 <div className="text-[10px] text-[#526477] mt-0.5">
                   CAM-08-001 • Sector 8
@@ -954,31 +1007,6 @@ export const Dashboard: React.FC = () => {
               </div>
               <span className="text-[10px] font-bold px-1.5 py-0.5 rounded border border-[#16A36A]/40 text-[#16A36A] bg-white">
                 Low
-              </span>
-            </div>
-
-            {/* Alert 5: Vehicle in Restricted Zone */}
-            <div 
-              onClick={() => setActiveTab('alerts-events')}
-              className="p-2.5 rounded-lg border border-[#FEF3C7] bg-[#FFFDF5] hover:bg-[#FEF9C3] transition cursor-pointer flex items-center space-x-2.5"
-            >
-              <div className="w-10 h-10 rounded bg-slate-700 shrink-0 overflow-hidden flex items-center justify-center text-white">
-                <Car className="w-5 h-5 text-slate-300" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center space-x-1">
-                  <AlertTriangle className="w-3.5 h-3.5 text-[#E34D59] shrink-0" />
-                  <span className="text-xs font-bold text-[#172F50] truncate">Vehicle in Restricted Zone</span>
-                </div>
-                <div className="text-[10px] text-[#526477] mt-0.5">
-                  CAM-43-001 • Sector 43
-                </div>
-                <div className="text-[9px] text-[#8291A2]">
-                  Today, 13:32:10
-                </div>
-              </div>
-              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded border border-[#E5A12B]/40 text-[#E5A12B] bg-white">
-                Medium
               </span>
             </div>
           </div>
@@ -1124,8 +1152,12 @@ export const Dashboard: React.FC = () => {
           {/* Active Incident Snapshot Preview */}
           <div className="mt-3 p-2.5 rounded-lg border border-[#E1EAF2] bg-[#F8FAFC] flex items-center justify-between">
             <div className="flex items-center space-x-2.5">
-              <div className="w-12 h-10 rounded bg-slate-800 overflow-hidden flex items-center justify-center text-slate-400">
-                <Camera className="w-5 h-5 text-slate-300" />
+              <div className="w-12 h-10 rounded bg-slate-900 overflow-hidden flex items-center justify-center border border-slate-300 shrink-0 relative shadow-xs">
+                <img 
+                  src="/static/alert_unattended_object.jpg" 
+                  alt="Active Incident CCTV Snapshot" 
+                  className="w-full h-full object-cover" 
+                />
               </div>
               <div>
                 <div className="text-xs font-bold text-[#172F50]">
@@ -1204,10 +1236,17 @@ export const Dashboard: React.FC = () => {
             {/* Vehicle Detection Card */}
             <div className="p-2.5 rounded-lg border border-[#E1EAF2] bg-[#F8FAFC] flex items-center space-x-3 mb-3">
               {/* White SUV Car Render */}
-              <div className="w-28 h-20 rounded bg-slate-800 flex items-center justify-center overflow-hidden shrink-0 relative">
-                <Car className="w-12 h-12 text-slate-100" />
-                <div className="absolute bottom-1 bg-black/60 text-[8px] text-white px-1 rounded font-mono">
-                  ANPR CROP
+              <div className="w-28 h-20 rounded bg-slate-900 flex items-center justify-center overflow-hidden shrink-0 relative border border-slate-300 shadow-sm">
+                <img 
+                  src="/static/anpr_ch01ab1234_suv.jpg" 
+                  alt="Detected White SUV CH01AB1234"
+                  className="w-full h-full object-cover"
+                />
+                <div className="absolute top-1 left-1 bg-black/75 backdrop-blur-xs text-[7px] text-cyan-300 px-1 py-0.2 rounded font-mono border border-cyan-400/40">
+                  CAM-17-001
+                </div>
+                <div className="absolute bottom-1 right-1 bg-emerald-600/90 text-[7px] text-white px-1 py-0.2 rounded font-mono font-bold">
+                  ANPR 96.3%
                 </div>
               </div>
 
@@ -1221,7 +1260,7 @@ export const Dashboard: React.FC = () => {
                 <div className="text-[11px] space-y-0.5 text-[#526477]">
                   <div><span className="text-[#8291A2]">Detected Number Plate:</span> <strong className="text-[#172F50]">CH01AB1234</strong></div>
                   <div><span className="text-[#8291A2]">Confidence:</span> <strong className="text-[#16A36A]">96.3%</strong></div>
-                  <div><span className="text-[#8291A2]">Vehicle Type:</span> <span>Car (SUV)</span></div>
+                  <div><span className="text-[#8291A2]">Vehicle Type:</span> <span>Car (White SUV)</span></div>
                   <div><span className="text-[#8291A2]">Camera:</span> <span>CAM-17-001</span></div>
                   <div><span className="text-[#8291A2]">Location:</span> <span>Sector 17 - Plaza</span></div>
                   <div><span className="text-[#8291A2]">Time:</span> <span>2026-05-18 14:25:40</span></div>
@@ -1315,80 +1354,274 @@ export const Dashboard: React.FC = () => {
                     Predictive Analytics
                   </h2>
                   <p className="text-[10px] text-[#8291A2] mt-0.5">
-                    AI-based incident risk forecasting
+                    AI spatio-temporal risk forecasting
                   </p>
                 </div>
               </div>
 
-              <select className="text-[11px] font-medium bg-[#F4F8FC] border border-[#E1EAF2] rounded px-2 py-0.5 text-[#172F50]">
-                <option>Next 24 Hours</option>
-                <option>Next 48 Hours</option>
-                <option>Next 7 Days</option>
+              <select 
+                value={predictiveTimeWindow}
+                onChange={(e) => setPredictiveTimeWindow(e.target.value as any)}
+                className="text-[11px] font-semibold bg-[#F4F8FC] border border-[#CBDCEE] rounded px-2 py-0.5 text-[#172F50] cursor-pointer hover:border-[#2463A6] transition"
+              >
+                <option value="24h">Next 24 Hours</option>
+                <option value="48h">Next 48 Hours</option>
+                <option value="7d">Next 7 Days</option>
               </select>
             </div>
 
             {/* Geographical Risk Heatmap Graphic */}
-            <div className="relative rounded-lg overflow-hidden border border-[#CBDCEE] bg-[#EBF3FA] p-2 mb-3">
-              {/* SVG Contour Heatmap Map Illustration */}
-              <svg viewBox="0 0 300 160" className="w-full h-32 rounded">
+            <div className="relative rounded-lg overflow-hidden border border-[#CBDCEE] bg-[#F1F6FB] p-2 mb-3 shadow-xs">
+              {/* Header HUD Banner */}
+              <div className="flex items-center justify-between text-[8px] font-mono text-[#526477] mb-1 px-1">
+                <span className="flex items-center space-x-1 font-semibold text-[#1E3A8A]">
+                  <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-ping"></span>
+                  <span>CHANDIGARH GIS SECTOR GRID</span>
+                </span>
+                <span className="text-[#8291A2]">
+                  {predictiveTimeWindow === '24h' ? 'HORIZON: +24H' : predictiveTimeWindow === '48h' ? 'HORIZON: +48H' : 'HORIZON: +7D'}
+                </span>
+              </div>
+
+              {/* High-Definition SVG Chandigarh GIS Sector Heatmap */}
+              <svg viewBox="0 0 320 185" className="w-full h-36 rounded border border-[#CBDCEE] bg-[#EEF5FB] shadow-inner select-none">
                 <defs>
+                  {/* Gaussian Blur for Thermal Surface Diffusion */}
+                  <filter id="gisHeatFilter" x="-40%" y="-40%" width="180%" height="180%">
+                    <feGaussianBlur stdDeviation="8" />
+                  </filter>
+
+                  {/* Water Gradient for Sukhna Lake */}
+                  <linearGradient id="sukhnaGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stopColor="#60A5FA" stopOpacity="0.9" />
+                    <stop offset="100%" stopColor="#2563EB" stopOpacity="0.95" />
+                  </linearGradient>
+
+                  {/* Dynamic Hotspot 1: Sector 17 (Peak Commercial Hotspot) */}
                   <radialGradient id="heat17" cx="50%" cy="50%" r="50%">
-                    <stop offset="0%" stopColor="#E34D59" stopOpacity="0.85" />
-                    <stop offset="50%" stopColor="#E5A12B" stopOpacity="0.6" />
-                    <stop offset="100%" stopColor="#16A36A" stopOpacity="0.05" />
+                    <stop offset="0%" stopColor="#EF4444" stopOpacity={predictiveTimeWindow === '24h' ? '0.90' : predictiveTimeWindow === '48h' ? '0.82' : '0.78'} />
+                    <stop offset="35%" stopColor="#F97316" stopOpacity="0.75" />
+                    <stop offset="68%" stopColor="#FBBF24" stopOpacity="0.45" />
+                    <stop offset="100%" stopColor="#10B981" stopOpacity="0" />
                   </radialGradient>
+
+                  {/* Dynamic Hotspot 2: Sector 22 (Market Avenue) */}
                   <radialGradient id="heat22" cx="50%" cy="50%" r="50%">
-                    <stop offset="0%" stopColor="#E5A12B" stopOpacity="0.8" />
-                    <stop offset="60%" stopColor="#16A36A" stopOpacity="0.2" />
-                    <stop offset="100%" stopColor="#16A36A" stopOpacity="0" />
+                    <stop offset="0%" stopColor="#F97316" stopOpacity={predictiveTimeWindow === '24h' ? '0.85' : predictiveTimeWindow === '48h' ? '0.90' : '0.75'} />
+                    <stop offset="42%" stopColor="#FBBF24" stopOpacity="0.55" />
+                    <stop offset="100%" stopColor="#10B981" stopOpacity="0" />
+                  </radialGradient>
+
+                  {/* Dynamic Hotspot 3: Sector 35 (Rotary & Hotel Corridor) */}
+                  <radialGradient id="heat35" cx="50%" cy="50%" r="50%">
+                    <stop offset="0%" stopColor="#FBBF24" stopOpacity="0.75" />
+                    <stop offset="55%" stopColor="#34D399" stopOpacity="0.30" />
+                    <stop offset="100%" stopColor="#10B981" stopOpacity="0" />
+                  </radialGradient>
+
+                  {/* Dynamic Hotspot 4: Sector 43 (ISBT Bus Terminal) */}
+                  <radialGradient id="heat43" cx="50%" cy="50%" r="50%">
+                    <stop offset="0%" stopColor="#FBBF24" stopOpacity={predictiveTimeWindow === '48h' ? '0.82' : '0.70'} />
+                    <stop offset="50%" stopColor="#34D399" stopOpacity="0.25" />
+                    <stop offset="100%" stopColor="#10B981" stopOpacity="0" />
                   </radialGradient>
                 </defs>
 
-                {/* Base Greenish Safe Zone */}
-                <rect x="0" y="0" width="300" height="160" fill="#E2F0D9" />
+                {/* 1. Base GIS Terrain & Le Corbusier Sector Grids */}
+                <rect x="0" y="0" width="320" height="185" fill="#EEF5FB" />
 
-                {/* Lake Sukhna */}
-                <path d="M 220 15 Q 260 20 280 40 Q 290 60 260 70 Q 230 65 220 40 Z" fill="#99C0F0" opacity="0.8" />
-                <text x="235" y="45" fontSize="8" fill="#172F50" fontWeight="600">Sukhna Lake</text>
+                {/* Top: Shivalik Foothills Silhouette */}
+                <path d="M 0 16 Q 80 8 160 14 Q 240 6 320 12 L 320 0 L 0 0 Z" fill="#D8E8F8" opacity="0.7" />
+                <text x="6" y="9" fontSize="6" fill="#64748B" fontWeight="600" letterSpacing="0.4">SHIVALIK FOOTHILLS</text>
 
-                {/* Risk Heat Contours */}
-                <circle cx="150" cy="80" r="55" fill="url(#heat17)" />
-                <circle cx="215" cy="95" r="40" fill="url(#heat22)" />
-                <circle cx="95" cy="115" r="35" fill="url(#heat22)" opacity="0.6" />
+                {/* Chandigarh Rectilinear Sector Blocks */}
+                {/* Sector 1: Capitol Complex */}
+                <rect x="130" y="14" width="58" height="20" rx="2" fill="#E2EDF8" stroke="#CBDCEE" strokeWidth="0.8" />
+                <text x="134" y="27" fontSize="6.5" fill="#475569" fontWeight="600">Sec 1 Capitol</text>
 
-                {/* Sector Labels */}
-                <g fontSize="9" fontWeight="700" fill="#172F50">
-                  <rect x="130" y="70" width="46" height="15" rx="3" fill="#FFFFFF" opacity="0.85" />
-                  <text x="134" y="81">Sector 17</text>
+                {/* Sector 2, 3 */}
+                <rect x="70" y="14" width="54" height="20" rx="2" fill="#E2EDF8" stroke="#CBDCEE" strokeWidth="0.8" />
+                <text x="76" y="27" fontSize="6.5" fill="#64748B">Sec 2 / 3</text>
 
-                  <rect x="200" y="85" width="46" height="15" rx="3" fill="#FFFFFF" opacity="0.85" />
-                  <text x="204" y="96">Sector 22</text>
+                {/* Sector 4, 5 */}
+                <rect x="194" y="14" width="46" height="20" rx="2" fill="#E2EDF8" stroke="#CBDCEE" strokeWidth="0.8" />
+                <text x="198" y="27" fontSize="6.5" fill="#64748B">Sec 4 / 5</text>
 
-                  <rect x="75" y="105" width="46" height="15" rx="3" fill="#FFFFFF" opacity="0.85" />
-                  <text x="79" y="116">Sector 35</text>
+                {/* Row 1 Sectors */}
+                {/* Sec 14 Panjab University */}
+                <rect x="10" y="38" width="54" height="34" rx="2" fill="#E2EDF8" stroke="#CBDCEE" strokeWidth="0.8" />
+                {/* Sec 11 */}
+                <rect x="70" y="38" width="54" height="34" rx="2" fill="#E2EDF8" stroke="#CBDCEE" strokeWidth="0.8" />
+                <text x="76" y="58" fontSize="7" fill="#64748B">Sec 11</text>
+                {/* Sec 10 Museum */}
+                <rect x="130" y="38" width="58" height="34" rx="2" fill="#E2EDF8" stroke="#CBDCEE" strokeWidth="0.8" />
+                <text x="136" y="58" fontSize="7" fill="#64748B">Sec 10</text>
+                {/* Sec 9 */}
+                <rect x="194" y="38" width="48" height="34" rx="2" fill="#E2EDF8" stroke="#CBDCEE" strokeWidth="0.8" />
+                <text x="200" y="58" fontSize="7" fill="#64748B">Sec 9</text>
+                {/* Sec 8 */}
+                <rect x="248" y="38" width="44" height="34" rx="2" fill="#E2EDF8" stroke="#CBDCEE" strokeWidth="0.8" />
+                <text x="254" y="58" fontSize="7" fill="#64748B">Sec 8</text>
 
-                  <rect x="160" y="115" width="46" height="15" rx="3" fill="#FFFFFF" opacity="0.85" />
-                  <text x="164" y="126">Sector 43</text>
+                {/* Row 2 Sectors */}
+                {/* Sec 15 */}
+                <rect x="10" y="78" width="54" height="34" rx="2" fill="#E2EDF8" stroke="#CBDCEE" strokeWidth="0.8" />
+                <text x="16" y="98" fontSize="7" fill="#64748B">Sec 15</text>
+                {/* Sec 16 Rose Garden */}
+                <rect x="70" y="78" width="54" height="34" rx="2" fill="#E2EDF8" stroke="#CBDCEE" strokeWidth="0.8" />
+                <text x="76" y="98" fontSize="7" fill="#64748B">Sec 16</text>
+                {/* Sec 17 Commercial City Centre */}
+                <rect x="130" y="78" width="58" height="34" rx="2" fill="#FEE2E2" stroke="#EF4444" strokeWidth="1" strokeDasharray="2 1" />
+                {/* Sec 18 */}
+                <rect x="194" y="78" width="48" height="34" rx="2" fill="#E2EDF8" stroke="#CBDCEE" strokeWidth="0.8" />
+                <text x="200" y="98" fontSize="7" fill="#64748B">Sec 18</text>
+                {/* Sec 19 */}
+                <rect x="248" y="78" width="44" height="34" rx="2" fill="#E2EDF8" stroke="#CBDCEE" strokeWidth="0.8" />
+                <text x="254" y="98" fontSize="7" fill="#64748B">Sec 19</text>
+
+                {/* Row 3 Sectors */}
+                {/* Sec 23 */}
+                <rect x="70" y="118" width="54" height="32" rx="2" fill="#E2EDF8" stroke="#CBDCEE" strokeWidth="0.8" />
+                <text x="76" y="136" fontSize="7" fill="#64748B">Sec 23</text>
+                {/* Sec 22 Market */}
+                <rect x="130" y="118" width="58" height="32" rx="2" fill="#FFEDD5" stroke="#F97316" strokeWidth="1" strokeDasharray="2 1" />
+                {/* Sec 21 */}
+                <rect x="194" y="118" width="48" height="32" rx="2" fill="#E2EDF8" stroke="#CBDCEE" strokeWidth="0.8" />
+                <text x="200" y="136" fontSize="7" fill="#64748B">Sec 21</text>
+
+                {/* Row 4 Sectors (South) */}
+                {/* Sec 35 */}
+                <rect x="70" y="154" width="54" height="26" rx="2" fill="#FEF3C7" stroke="#FBBF24" strokeWidth="0.9" />
+                {/* Sec 43 ISBT */}
+                <rect x="130" y="154" width="58" height="26" rx="2" fill="#FEF3C7" stroke="#FBBF24" strokeWidth="0.9" />
+
+                {/* 2. Sukhna Lake (Curved Organic Waterbody & Dam Embankment) */}
+                <path 
+                  d="M 235 12 C 265 10 305 18 316 36 C 322 52 305 64 272 58 C 248 54 238 38 235 12 Z" 
+                  fill="url(#sukhnaGradient)" 
+                  stroke="#3B82F6" 
+                  strokeWidth="1.2" 
+                />
+                {/* Lake Wave Ripple Lines */}
+                <path d="M 252 24 Q 268 28 285 22" fill="none" stroke="#DBEAFE" strokeWidth="0.8" opacity="0.8" />
+                <path d="M 265 35 Q 282 38 298 32" fill="none" stroke="#DBEAFE" strokeWidth="0.8" opacity="0.8" />
+                <path d="M 250 42 Q 268 45 284 40" fill="none" stroke="#DBEAFE" strokeWidth="0.8" opacity="0.8" />
+                <text x="252" y="34" fontSize="7.5" fill="#FFFFFF" fontWeight="800" className="drop-shadow-xs">Sukhna Lake</text>
+
+                {/* Rock Garden Marker */}
+                <rect x="206" y="22" width="22" height="10" rx="1.5" fill="#FFFFFF" stroke="#93C5FD" strokeWidth="0.8" opacity="0.9" />
+                <text x="208" y="29.5" fontSize="5" fill="#1E3A8A" fontWeight="700">Rock Gdn</text>
+
+                {/* 3. Arterial V-Road Network (Chandigarh 7Vs Hierarchy) */}
+                {/* Madhya Marg (V2 East-West) */}
+                <line x1="6" y1="74" x2="314" y2="74" stroke="#CBD5E1" strokeWidth="3" />
+                <line x1="6" y1="74" x2="314" y2="74" stroke="#64748B" strokeWidth="0.9" strokeDasharray="4 2" />
+                <text x="12" y="72.5" fontSize="5" fill="#475569" fontWeight="700" letterSpacing="0.4">MADHYA MARG (V2)</text>
+
+                {/* Dakshin Marg (V2 East-West) */}
+                <line x1="6" y1="151" x2="314" y2="151" stroke="#CBD5E1" strokeWidth="3" />
+                <line x1="6" y1="151" x2="314" y2="151" stroke="#64748B" strokeWidth="0.9" strokeDasharray="4 2" />
+                <text x="12" y="149.5" fontSize="5" fill="#475569" fontWeight="700" letterSpacing="0.4">DAKSHIN MARG (V2)</text>
+
+                {/* Jan Marg (V3 North-South) */}
+                <line x1="126" y1="12" x2="126" y2="182" stroke="#CBD5E1" strokeWidth="3" />
+                <line x1="126" y1="12" x2="126" y2="182" stroke="#64748B" strokeWidth="0.9" strokeDasharray="4 2" />
+
+                {/* Himalaya Marg (V3 North-South) */}
+                <line x1="190" y1="12" x2="190" y2="182" stroke="#CBD5E1" strokeWidth="3" />
+                <line x1="190" y1="12" x2="190" y2="182" stroke="#64748B" strokeWidth="0.9" strokeDasharray="4 2" />
+
+                {/* 4. Thermal Spatio-Temporal AI Risk Heatmap Contours */}
+                <g filter="url(#gisHeatFilter)">
+                  {/* Sector 17 Commercial Epicenter */}
+                  <circle cx="159" cy="95" r="54" fill="url(#heat17)" />
+                  {/* Sector 22 Market Density */}
+                  <circle cx="159" cy="134" r="42" fill="url(#heat22)" />
+                  {/* Sector 35 Rotary */}
+                  <circle cx="97" cy="167" r="32" fill="url(#heat35)" />
+                  {/* Sector 43 ISBT */}
+                  <circle cx="159" cy="167" r="30" fill="url(#heat43)" />
                 </g>
+
+                {/* 5. Precise Vector Risk Isolines (Elevation Density Contours) */}
+                {/* 75% Critical Risk Contour around Sector 17 */}
+                <ellipse cx="159" cy="95" rx="34" ry="22" fill="none" stroke="#EF4444" strokeWidth="1.2" strokeDasharray="3 2" opacity="0.85" />
+                {/* 50% High Risk Envelope */}
+                <path d="M 124 92 C 120 125, 126 145, 159 146 C 188 145, 194 125, 190 92 C 186 78, 128 78, 124 92 Z" fill="none" stroke="#F97316" strokeWidth="1" strokeDasharray="3 2" opacity="0.75" />
+                {/* 25% Moderate Perimeter */}
+                <path d="M 68 85 C 62 165, 218 165, 218 85 C 218 64, 74 64, 68 85 Z" fill="none" stroke="#FBBF24" strokeWidth="0.8" strokeDasharray="4 2" opacity="0.55" />
+
+                {/* 6. Active Live CCTV Radar Ping on Sector 17 Epicenter */}
+                <circle cx="159" cy="95" r="14" fill="none" stroke="#EF4444" strokeWidth="1.6" className="animate-ping" opacity="0.7" />
+                <circle cx="159" cy="95" r="3.5" fill="#EF4444" stroke="#FFFFFF" strokeWidth="1" />
+
+                {/* 7. Tactical GIS Sector Labels & Live Confidence Badges */}
+                {/* Sector 17 Badge */}
+                <g className="cursor-pointer" onClick={() => setSelectedCameraId('CAM-17-001')}>
+                  <rect x="134" y="87" width="50" height="16" rx="3" fill="#FFFFFF" stroke="#EF4444" strokeWidth="1.2" className="shadow-xs" />
+                  <text x="138" y="98.5" fontSize="7.5" fill="#991B1B" fontWeight="800">Sec 17</text>
+                  <text x="165" y="98.5" fontSize="7" fill="#EF4444" fontWeight="800">
+                    {predictiveTimeWindow === '24h' ? '84%' : predictiveTimeWindow === '48h' ? '76%' : '71%'}
+                  </text>
+                </g>
+
+                {/* Sector 22 Badge */}
+                <g className="cursor-pointer" onClick={() => setSelectedCameraId('CAM-22-003')}>
+                  <rect x="134" y="125" width="50" height="16" rx="3" fill="#FFFFFF" stroke="#F97316" strokeWidth="1.2" className="shadow-xs" />
+                  <text x="138" y="136.5" fontSize="7.5" fill="#9A3412" fontWeight="800">Sec 22</text>
+                  <text x="165" y="136.5" fontSize="7" fill="#F97316" fontWeight="800">
+                    {predictiveTimeWindow === '24h' ? '68%' : predictiveTimeWindow === '48h' ? '74%' : '65%'}
+                  </text>
+                </g>
+
+                {/* Sector 35 Badge */}
+                <g className="cursor-pointer" onClick={() => setSelectedCameraId('CAM-35-002')}>
+                  <rect x="73" y="159" width="48" height="15" rx="3" fill="#FFFFFF" stroke="#FBBF24" strokeWidth="1.1" className="shadow-xs" />
+                  <text x="77" y="170" fontSize="7" fill="#854D0E" fontWeight="800">Sec 35</text>
+                  <text x="103" y="170" fontSize="6.5" fill="#D97706" fontWeight="800">
+                    {predictiveTimeWindow === '24h' ? '52%' : predictiveTimeWindow === '48h' ? '58%' : '60%'}
+                  </text>
+                </g>
+
+                {/* Sector 43 Badge */}
+                <g className="cursor-pointer" onClick={() => setSelectedCameraId('CAM-43-001')}>
+                  <rect x="135" y="159" width="48" height="15" rx="3" fill="#FFFFFF" stroke="#FBBF24" strokeWidth="1.1" className="shadow-xs" />
+                  <text x="139" y="170" fontSize="7" fill="#854D0E" fontWeight="800">Sec 43</text>
+                  <text x="164" y="170" fontSize="6.5" fill="#D97706" fontWeight="800">
+                    {predictiveTimeWindow === '24h' ? '47%' : predictiveTimeWindow === '48h' ? '62%' : '55%'}
+                  </text>
+                </g>
+
+                {/* Sector 14 PU (Low Risk Benchmark) */}
+                <rect x="13" y="44" width="46" height="14" rx="2.5" fill="#FFFFFF" stroke="#10B981" strokeWidth="0.9" />
+                <text x="17" y="54" fontSize="6.5" fill="#065F46" fontWeight="700">Sec 14 (PU)</text>
+                <text x="44" y="54" fontSize="6" fill="#10B981" fontWeight="800">22%</text>
               </svg>
 
-              {/* Heatmap Legend */}
-              <div className="flex items-center justify-between text-[9px] font-medium text-[#526477] mt-1 pt-1 border-t border-[#CBDCEE]">
-                <div className="flex items-center space-x-1">
-                  <span className="w-2 h-2 rounded-full bg-[#16A36A]"></span>
-                  <span>Low Risk</span>
+              {/* Heatmap Legend with Gradient Bar */}
+              <div className="mt-1.5 pt-1.5 border-t border-[#CBDCEE] space-y-1">
+                <div className="flex items-center justify-between text-[8px] font-medium text-[#526477]">
+                  <div className="flex items-center space-x-1">
+                    <span className="w-2 h-2 rounded-full bg-[#16A36A]"></span>
+                    <span>Low (&lt;25%)</span>
+                  </div>
+                  <div className="flex items-center space-x-1">
+                    <span className="w-2 h-2 rounded-full bg-[#E5A12B]"></span>
+                    <span>Medium (25-50%)</span>
+                  </div>
+                  <div className="flex items-center space-x-1">
+                    <span className="w-2 h-2 rounded-full bg-[#FA7035]"></span>
+                    <span>High (50-75%)</span>
+                  </div>
+                  <div className="flex items-center space-x-1">
+                    <span className="w-2 h-2 rounded-full bg-[#E34D59]"></span>
+                    <span>Very High (&gt;75%)</span>
+                  </div>
                 </div>
-                <div className="flex items-center space-x-1">
-                  <span className="w-2 h-2 rounded-full bg-[#E5A12B]"></span>
-                  <span>Medium Risk</span>
-                </div>
-                <div className="flex items-center space-x-1">
-                  <span className="w-2 h-2 rounded-full bg-[#FA7035]"></span>
-                  <span>High Risk</span>
-                </div>
-                <div className="flex items-center space-x-1">
-                  <span className="w-2 h-2 rounded-full bg-[#E34D59]"></span>
-                  <span>Very High</span>
+
+                {/* Sub-telemetry line */}
+                <div className="text-[7.5px] font-mono text-[#8291A2] text-center truncate pt-0.5">
+                  AI MODEL: SPATIO-TEMPORAL GNN • GRID RESOLUTION: 250m² • CONFIDENCE: 94.6%
                 </div>
               </div>
             </div>
@@ -1397,12 +1630,12 @@ export const Dashboard: React.FC = () => {
           {/* High Risk Areas Table */}
           <div>
             <div className="flex items-center justify-between text-xs font-bold text-[#172F50] mb-1">
-              <span>High Risk Areas (Next 24 Hours)</span>
+              <span>High Risk Sectors ({predictiveTimeWindow === '24h' ? 'Next 24 Hours' : predictiveTimeWindow === '48h' ? 'Next 48 Hours' : 'Next 7 Days'})</span>
               <button 
                 onClick={() => setActiveTab('analytics')}
                 className="text-[11px] font-semibold text-[#2463A6] hover:underline"
               >
-                View All
+                View Full Forecast
               </button>
             </div>
             <div className="border border-[#E1EAF2] rounded-lg overflow-hidden text-[10px]">
@@ -1418,30 +1651,46 @@ export const Dashboard: React.FC = () => {
                   <tr className="hover:bg-[#F4F8FC]">
                     <td className="py-1.5 px-2 font-medium">Sector 17</td>
                     <td className="py-1.5 px-2">
-                      <span className="px-1.5 py-0.5 rounded bg-[#FEE2E2] text-[#E34D59] font-bold">High</span>
+                      <span className="px-1.5 py-0.5 rounded bg-[#FEE2E2] text-[#E34D59] font-bold">
+                        {predictiveTimeWindow === '24h' ? '84% Very High' : predictiveTimeWindow === '48h' ? '76% High' : '71% High'}
+                      </span>
                     </td>
-                    <td className="py-1.5 px-2 text-[#526477]">Historical pattern, high footfall</td>
+                    <td className="py-1.5 px-2 text-[#526477]">
+                      {predictiveTimeWindow === '24h' ? 'Commercial promenade, peak evening footfall' : 'Weekend public gatherings & retail flow'}
+                    </td>
                   </tr>
                   <tr className="hover:bg-[#F4F8FC]">
                     <td className="py-1.5 px-2 font-medium">Sector 22</td>
                     <td className="py-1.5 px-2">
-                      <span className="px-1.5 py-0.5 rounded bg-[#FEF3C7] text-[#E5A12B] font-bold">Medium</span>
+                      <span className="px-1.5 py-0.5 rounded bg-[#FFEDD5] text-[#FA7035] font-bold">
+                        {predictiveTimeWindow === '24h' ? '68% High' : predictiveTimeWindow === '48h' ? '74% High' : '65% Medium'}
+                      </span>
                     </td>
-                    <td className="py-1.5 px-2 text-[#526477]">Recent vehicle incidents</td>
+                    <td className="py-1.5 px-2 text-[#526477]">
+                      {predictiveTimeWindow === '24h' ? 'Market density, high ANPR vehicle hits' : 'Weekend market parking overflows'}
+                    </td>
                   </tr>
                   <tr className="hover:bg-[#F4F8FC]">
                     <td className="py-1.5 px-2 font-medium">Sector 35</td>
                     <td className="py-1.5 px-2">
-                      <span className="px-1.5 py-0.5 rounded bg-[#FEF3C7] text-[#E5A12B] font-bold">Medium</span>
+                      <span className="px-1.5 py-0.5 rounded bg-[#FEF3C7] text-[#E5A12B] font-bold">
+                        {predictiveTimeWindow === '24h' ? '52% Medium' : predictiveTimeWindow === '48h' ? '58% Medium' : '60% Medium'}
+                      </span>
                     </td>
-                    <td className="py-1.5 px-2 text-[#526477]">Evening activity, past trend</td>
+                    <td className="py-1.5 px-2 text-[#526477]">
+                      Rotary convergence & restaurant traffic
+                    </td>
                   </tr>
                   <tr className="hover:bg-[#F4F8FC]">
                     <td className="py-1.5 px-2 font-medium">Sector 43</td>
                     <td className="py-1.5 px-2">
-                      <span className="px-1.5 py-0.5 rounded bg-[#E8F8F0] text-[#16A36A] font-bold">Low</span>
+                      <span className="px-1.5 py-0.5 rounded bg-[#FEF3C7] text-[#E5A12B] font-bold">
+                        {predictiveTimeWindow === '24h' ? '47% Medium' : predictiveTimeWindow === '48h' ? '62% High' : '55% Medium'}
+                      </span>
                     </td>
-                    <td className="py-1.5 px-2 text-[#526477]">Lower historical activity</td>
+                    <td className="py-1.5 px-2 text-[#526477]">
+                      {predictiveTimeWindow === '48h' ? 'Weekend outbound bus terminal surge' : 'ISBT shift queues & transit hub flow'}
+                    </td>
                   </tr>
                 </tbody>
               </table>
