@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
-  GitFork, Play, Pause, RotateCcw, Video, Clock, 
-  MapPin, Shield, Download, Camera, Maximize2, CheckCircle2 
+  GitFork, Play, Pause, RotateCcw, Download
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 
@@ -9,19 +8,43 @@ export const IncidentReconstruction: React.FC = () => {
   const { setActiveTab } = useApp();
   const [isPlaying, setIsPlaying] = useState(false);
   const [playheadPos, setPlayheadPos] = useState(35); // 0 to 100%
-  const [activeIncident, setActiveIncident] = useState({
-    title: 'Suspicious Person Loitering & Unattended Object',
-    time: '2026-05-18 10:28:15',
-    primaryCam: 'CAM-22-003',
-    location: 'Sector 22 Market',
-    severity: 'High'
-  });
 
-  const canvasRefs = [
-    useRef<HTMLCanvasElement | null>(null),
-    useRef<HTMLCanvasElement | null>(null),
-    useRef<HTMLCanvasElement | null>(null),
-    useRef<HTMLCanvasElement | null>(null)
+  const cameraFeeds = [
+    { 
+      id: 'CAM-17-001', 
+      name: 'Sector 17 - North Plaza',
+      url: '/static/real_pedestrian_walk.mp4',
+      targetLabel: 'Target #101',
+      targetClass: 'Pedestrian Subject'
+    },
+    { 
+      id: 'CAM-22-003', 
+      name: 'Sector 22 - Central Market',
+      url: '/static/real_public_interaction.mp4',
+      targetLabel: 'Target #102',
+      targetClass: 'Carrying Duffel'
+    },
+    { 
+      id: 'CAM-35-002', 
+      name: 'Sector 35 - Outer Roundabout',
+      url: '/static/real_unattended_bag.mp4',
+      targetLabel: 'Target #103',
+      targetClass: 'Unattended Object'
+    },
+    { 
+      id: 'CAM-43-001', 
+      name: 'Sector 43 - Main Transit Entry',
+      url: '/static/ucf_crime_road_accidents_demo.mp4',
+      targetLabel: 'Target #104',
+      targetClass: 'Vehicle CH01AB1234'
+    }
+  ];
+
+  const videoRefs = [
+    useRef<HTMLVideoElement | null>(null),
+    useRef<HTMLVideoElement | null>(null),
+    useRef<HTMLVideoElement | null>(null),
+    useRef<HTMLVideoElement | null>(null)
   ];
 
   // Playhead auto-scrubbing animation when playing
@@ -29,63 +52,63 @@ export const IncidentReconstruction: React.FC = () => {
     let timer: any;
     if (isPlaying) {
       timer = setInterval(() => {
-        setPlayheadPos((prev) => (prev >= 98 ? 10 : prev + 0.5));
+        setPlayheadPos((prev) => {
+          if (prev >= 98) {
+            return 10;
+          }
+          return prev + 0.5;
+        });
       }, 100);
+
+      // Play all 4 synchronized videos
+      videoRefs.forEach((ref) => {
+        if (ref.current && ref.current.paused) {
+          ref.current.play().catch(() => {});
+        }
+      });
+    } else {
+      // Pause all 4 synchronized videos
+      videoRefs.forEach((ref) => {
+        if (ref.current && !ref.current.paused) {
+          ref.current.pause();
+        }
+      });
     }
     return () => clearInterval(timer);
   }, [isPlaying]);
 
-  // Synchronized canvas playback
+  // Synchronize video time when playhead scrub changes
   useEffect(() => {
-    let animId: number;
-    const renderCanvases = () => {
-      canvasRefs.forEach((ref, idx) => {
-        const canvas = ref.current;
-        if (!canvas) return;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) return;
-
-        const w = canvas.width;
-        const h = canvas.height;
-
-        ctx.fillStyle = idx % 2 === 0 ? '#1e293b' : '#0f172a';
-        ctx.fillRect(0, 0, w, h);
-
-        // Ground walkway
-        ctx.fillStyle = '#334155';
-        ctx.fillRect(0, h * 0.5, w, h * 0.5);
-
-        // Simulated tracked subject
-        const xPos = ((playheadPos / 100) * w * 0.8) + (idx * 15);
-        const yPos = h * 0.65;
-
-        // Bounding Box
-        ctx.strokeStyle = '#E34D59';
-        ctx.lineWidth = 1.5;
-        ctx.strokeRect(xPos - 12, yPos - 24, 24, 38);
-        ctx.fillStyle = 'rgba(227, 77, 89, 0.2)';
-        ctx.fillRect(xPos - 12, yPos - 24, 24, 38);
-
-        ctx.fillStyle = '#E34D59';
-        ctx.font = '8px monospace';
-        ctx.fillText(`Target #${101 + idx}`, xPos - 12, yPos - 27);
-
-        // Timestamp
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
-        ctx.fillRect(4, h - 18, 90, 14);
-        ctx.fillStyle = '#ffffff';
-        ctx.font = '9px monospace';
-        const mins = Math.floor(playheadPos * 0.3);
-        const secs = Math.floor((playheadPos * 18) % 60);
-        ctx.fillText(`10:${15 + mins}:${secs < 10 ? '0' : ''}${secs}`, 8, h - 8);
-      });
-
-      animId = requestAnimationFrame(renderCanvases);
-    };
-
-    renderCanvases();
-    return () => cancelAnimationFrame(animId);
+    videoRefs.forEach((ref) => {
+      const vid = ref.current;
+      if (vid && vid.duration) {
+        const targetTime = (playheadPos / 100) * vid.duration;
+        if (Math.abs(vid.currentTime - targetTime) > 0.3) {
+          vid.currentTime = targetTime;
+        }
+      }
+    });
   }, [playheadPos]);
+
+  // Handle playhead click or drag
+  const handleTimelineClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const pct = Math.max(5, Math.min(95, ((e.clientX - rect.left) / rect.width) * 100));
+    setPlayheadPos(pct);
+  };
+
+  const handleReset = () => {
+    setPlayheadPos(10);
+    videoRefs.forEach((ref) => {
+      if (ref.current) {
+        ref.current.currentTime = 0;
+      }
+    });
+  };
+
+  const mins = Math.floor(playheadPos * 0.3);
+  const secs = Math.floor((playheadPos * 18) % 60);
+  const formattedSecs = secs < 10 ? `0${secs}` : secs;
 
   return (
     <div className="space-y-4 max-w-[1720px] mx-auto pb-6">
@@ -122,29 +145,72 @@ export const IncidentReconstruction: React.FC = () => {
         </div>
       </div>
 
-      {/* 4 Synchronized Camera Views Grid */}
+      {/* 4 Synchronized Camera Views Grid with Real Footage */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-        {[
-          { id: 'CAM-17-001', name: 'Sector 17 - North Plaza' },
-          { id: 'CAM-22-003', name: 'Sector 22 - Central Market' },
-          { id: 'CAM-35-002', name: 'Sector 35 - Outer Roundabout' },
-          { id: 'CAM-43-001', name: 'Sector 43 - Main Transit Entry' }
-        ].map((cam, idx) => (
-          <div key={cam.id} className="bg-white border border-[#E1EAF2] rounded-xl overflow-hidden shadow-sm">
-            <div className="p-2 border-b border-[#E1EAF2] bg-[#EDF4FC] flex items-center justify-between text-xs">
-              <div>
-                <span className="font-bold text-[#172F50]">{cam.id}</span>
-                <span className="text-[10px] text-[#8291A2] ml-1.5">{cam.name}</span>
+        {cameraFeeds.map((cam, idx) => {
+          // Dynamic box calculation based on playhead
+          const boxX = 20 + ((playheadPos * 0.5 + idx * 12) % 60);
+          const boxY = 35 + ((idx * 8 + playheadPos * 0.2) % 30);
+
+          return (
+            <div key={cam.id} className="bg-white border border-[#E1EAF2] rounded-xl overflow-hidden shadow-sm">
+              <div className="p-2 border-b border-[#E1EAF2] bg-[#EDF4FC] flex items-center justify-between text-xs">
+                <div>
+                  <span className="font-bold text-[#172F50]">{cam.id}</span>
+                  <span className="text-[10px] text-[#8291A2] ml-1.5">{cam.name}</span>
+                </div>
+                <span className="text-[9px] font-semibold px-1.5 py-0.2 rounded bg-[#DCEBFA] text-[#2463A6]">
+                  Sync Track {idx + 1}
+                </span>
               </div>
-              <span className="text-[9px] font-semibold px-1.5 py-0.2 rounded bg-[#DCEBFA] text-[#2463A6]">
-                Sync Track {idx + 1}
-              </span>
+
+              <div className="relative bg-slate-900 aspect-video overflow-hidden group">
+                {/* Real CCTV Footage Stream */}
+                <video
+                  ref={videoRefs[idx]}
+                  src={cam.url}
+                  className="w-full h-full object-cover"
+                  muted
+                  loop
+                  playsInline
+                  autoPlay={isPlaying}
+                />
+
+                {/* CCTV Telemetry Overlay HUD */}
+                <div className="absolute top-2 left-2 bg-black/70 backdrop-blur-xs px-2 py-0.5 rounded text-[10px] font-mono text-white flex items-center space-x-1.5 z-10">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                  <span className="font-bold">REC</span>
+                  <span className="text-slate-300">|</span>
+                  <span>{cam.id}</span>
+                </div>
+
+                <div className="absolute top-2 right-2 bg-black/70 px-1.5 py-0.5 rounded text-[9px] font-mono text-emerald-400 z-10">
+                  25 FPS | H.264
+                </div>
+
+                {/* Real-time Forensic Target Bounding Box Overlay */}
+                <div 
+                  className="absolute border border-rose-500/90 bg-rose-500/20 rounded pointer-events-none transition-all duration-100 z-10"
+                  style={{
+                    left: `${boxX}%`,
+                    top: `${boxY}%`,
+                    width: '26%',
+                    height: '42%'
+                  }}
+                >
+                  <div className="absolute -top-4 left-0 bg-rose-600 text-white font-mono text-[8px] font-bold px-1 rounded-xs tracking-tight whitespace-nowrap shadow-xs">
+                    {cam.targetLabel} ({cam.targetClass})
+                  </div>
+                </div>
+
+                {/* CCTV Timestamp Bar */}
+                <div className="absolute bottom-2 left-2 bg-black/80 px-2 py-0.5 rounded text-[10px] font-mono text-white z-10">
+                  2026-05-18 10:{15 + mins}:{formattedSecs}
+                </div>
+              </div>
             </div>
-            <div className="relative bg-slate-900 aspect-video">
-              <canvas ref={canvasRefs[idx]} width={300} height={170} className="w-full h-full object-cover" />
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Synchronized Timeline & Controls Panel */}
@@ -154,13 +220,13 @@ export const IncidentReconstruction: React.FC = () => {
           <div className="flex items-center space-x-3">
             <button
               onClick={() => setIsPlaying(!isPlaying)}
-              className="p-2 rounded-lg bg-[#2463A6] text-white hover:bg-[#1B4E85] shadow-sm transition"
+              className="p-2 rounded-lg bg-[#2463A6] text-white hover:bg-[#1B4E85] shadow-sm transition cursor-pointer"
             >
               {isPlaying ? <Pause className="w-4 h-4 fill-current" /> : <Play className="w-4 h-4 fill-current" />}
             </button>
             <button
-              onClick={() => setPlayheadPos(10)}
-              className="p-2 rounded-lg bg-[#F4F8FC] border border-[#CBDCEE] text-[#526477] hover:bg-[#E2EDF9] transition"
+              onClick={handleReset}
+              className="p-2 rounded-lg bg-[#F4F8FC] border border-[#CBDCEE] text-[#526477] hover:bg-[#E2EDF9] transition cursor-pointer"
               title="Reset Timeline to Start"
             >
               <RotateCcw className="w-4 h-4" />
@@ -169,7 +235,7 @@ export const IncidentReconstruction: React.FC = () => {
             <div className="text-xs">
               <span className="text-[#8291A2]">Current Forensic Timestamp:</span>{' '}
               <strong className="text-[#172F50] font-mono text-sm">
-                2026-05-18 10:{15 + Math.floor(playheadPos * 0.3)}:{Math.floor((playheadPos * 18) % 60) < 10 ? '0' : ''}{Math.floor((playheadPos * 18) % 60)}
+                2026-05-18 10:{15 + mins}:{formattedSecs}
               </strong>
             </div>
           </div>
@@ -185,11 +251,7 @@ export const IncidentReconstruction: React.FC = () => {
         {/* Multi-Track Scrubber Graphic */}
         <div 
           className="relative bg-[#F8FAFC] border border-[#E1EAF2] rounded-xl p-4 select-none cursor-pointer"
-          onClick={(e) => {
-            const rect = e.currentTarget.getBoundingClientRect();
-            const pct = Math.max(5, Math.min(95, ((e.clientX - rect.left) / rect.width) * 100));
-            setPlayheadPos(pct);
-          }}
+          onClick={handleTimelineClick}
         >
           {/* Header Time Markers */}
           <div className="flex justify-between text-[10px] font-mono text-[#8291A2] pb-2 border-b border-[#E1EAF2] mb-2">
