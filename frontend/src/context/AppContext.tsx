@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { Role, User, LiveAlert } from '../types';
+import { Role, User, LiveAlert, PortalMode } from '../types';
 import { api } from '../services/api';
 
 export type NavTab = 
@@ -8,6 +8,8 @@ export type NavTab =
   | 'camera-management'
   | 'video-management'
   | 'incident-reconstruction'
+  | 'citizen-reports-review'
+  | 'incident-audit'
   | 'vehicle-intelligence'
   | 'plate-search'
   | 'analytics'
@@ -15,8 +17,22 @@ export type NavTab =
   | 'emergency-response'
   | 'incident-reporting'
   | 'investigation'
-  | 'model-training'
   | 'settings'
+  // Citizen Portal tabs
+  | 'citizen-dashboard'
+  | 'citizen-report'
+  | 'citizen-track'
+  | 'citizen-help'
+  // Backend Engineer Portal tabs
+  | 'tech-dashboard'
+  | 'api-health'
+  | 'database-status'
+  | 'storage-queue'
+  | 'camera-integrations'
+  | 'ai-engine-status'
+  | 'system-logs'
+  | 'user-roles'
+  | 'system-config'
   // Backwards compatibility tabs
   | 'command-centre'
   | 'predictive-ai'
@@ -26,9 +42,13 @@ export type NavTab =
   | 'coordination'
   | 'multi-camera'
   | 'evidence'
-  | 'camera-trust';
+  | 'camera-trust'
+  | 'model-training';
 
 interface AppContextType {
+  portalMode: PortalMode;
+  setPortalMode: (mode: PortalMode) => void;
+  switchPortal: (mode: PortalMode) => void;
   activeTab: NavTab;
   setActiveTab: (tab: NavTab) => void;
   currentUser: User;
@@ -59,6 +79,7 @@ const defaultUser: User = {
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [portalMode, setPortalMode] = useState<PortalMode>('POLICE_OPERATIONS');
   const [activeTab, setActiveTab] = useState<NavTab>('dashboard');
   const [currentUser, setCurrentUser] = useState<User>(defaultUser);
   const [activeRole, setActiveRole] = useState<Role>('OPERATOR');
@@ -67,6 +88,37 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [isDemoMode, setIsDemoMode] = useState(true);
   const [isTriggeringScenario, setIsTriggeringScenario] = useState(false);
   const [pendingIncidentsCount, setPendingIncidentsCount] = useState(1);
+
+  const switchPortal = (mode: PortalMode) => {
+    setPortalMode(mode);
+    if (mode === 'PUBLIC_CITIZEN') {
+      setActiveTab('citizen-dashboard');
+      setActiveRole('CITIZEN');
+      setCurrentUser({
+        id: 101,
+        username: 'pooja.sharma',
+        full_name: 'Pooja Sharma',
+        role: 'CITIZEN',
+        badge_number: 'CIT-CHD-8419',
+        department: 'Resident — Sector 17, Chandigarh'
+      });
+    } else if (mode === 'BACKEND_ENGINEER') {
+      setActiveTab('tech-dashboard');
+      setActiveRole('ENGINEER');
+      setCurrentUser({
+        id: 103,
+        username: 'vikram.mehta',
+        full_name: 'Vikram Mehta',
+        role: 'ENGINEER',
+        badge_number: 'SYS-007',
+        department: 'Infrastructure & AI Systems Engineering'
+      });
+    } else {
+      setActiveTab('dashboard');
+      setActiveRole('OPERATOR');
+      setCurrentUser(defaultUser);
+    }
+  };
 
   // Synthesize soft warning beep using Web Audio API
   const playAlertSound = (severity: string) => {
@@ -176,8 +228,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       ADMIN: { name: 'Operations Director Sarah Vance', dept: 'Command & Control', badge: 'DIR-001' },
       OPERATOR: { name: 'Senior Control Operator Arjun Singh', dept: 'CCTV Monitoring Division', badge: 'OPR-402' },
       POLICE_RESPONDER: { name: 'Inspector Rajesh Sharma', dept: 'Metropolitan Police Dispatch', badge: 'POL-120' },
-      MEDICAL_RESPONDER: { name: 'Dr. Sunita Verma', dept: 'Emergency Medical Services (EMS)', badge: 'MED-084' },
-      INVESTIGATOR: { name: 'Detective Maya Lin', dept: 'Forensic Reconstruction Unit', badge: 'INV-902' }
+      MEDICAL_RESPONDER: { name: 'Dr. Harleen Kaur', dept: 'Emergency Medical Services (EMS)', badge: 'MED-084' },
+      INVESTIGATOR: { name: 'Detective Maya Lin', dept: 'Forensic Reconstruction Unit', badge: 'INV-902' },
+      CITIZEN: { name: 'Pooja Sharma', dept: 'Resident — Sector 17, Chandigarh', badge: 'CIT-CHD-8419' },
+      ENGINEER: { name: 'Vikram Mehta', dept: 'Infrastructure & AI Systems Engineering', badge: 'SYS-007' }
     };
     const info = nameMap[newRole];
     setCurrentUser((prev) => ({
@@ -207,6 +261,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   return (
     <AppContext.Provider
       value={{
+        portalMode,
+        setPortalMode,
+        switchPortal,
         activeTab,
         setActiveTab,
         currentUser,

@@ -288,10 +288,10 @@ export const CommandCentre: React.FC = () => {
                 <p className="text-[11px] text-slate-400">Validated on real-world pre-event benchmark dataset</p>
               </div>
               <button 
-                onClick={() => setActiveTab('model-training')}
+                onClick={() => setActiveTab('analytics')}
                 className="text-xs text-cyan-400 hover:underline flex items-center space-x-1"
               >
-                <span>Training Hub</span>
+                <span>Predictive Analytics</span>
                 <ArrowUpRight className="w-3.5 h-3.5" />
               </button>
             </div>

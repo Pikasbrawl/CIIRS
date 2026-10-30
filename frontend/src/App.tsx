@@ -17,7 +17,6 @@ import { VideoManagement } from './pages/VideoManagement';
 import { PredictiveAIEngine } from './pages/PredictiveAIEngine';
 import { EmergencyResponseCentre } from './pages/EmergencyResponseCentre';
 import { InvestigationWorkspace } from './pages/InvestigationWorkspace';
-import { AIModelTraining } from './pages/AIModelTraining';
 import { AnalyticsReports } from './pages/AnalyticsReports';
 import { Settings } from './pages/Settings';
 import { BehaviourIntelligence } from './pages/BehaviourIntelligence';
@@ -26,10 +25,27 @@ import { EvidenceManagement } from './pages/EvidenceManagement';
 import { CameraTrustSecurity } from './pages/CameraTrustSecurity';
 import { Coordination } from './pages/Coordination';
 
+// New Portals & Modules
+import { CitizenPortal } from './pages/CitizenPortal';
+import { CitizenReportsReview } from './pages/CitizenReportsReview';
+import { IncidentAuditReports } from './pages/IncidentAuditReports';
+import { BackendEngineerPortal } from './pages/BackendEngineerPortal';
+
 export const App: React.FC = () => {
-  const { activeTab } = useApp();
+  const { activeTab, portalMode } = useApp();
 
   const renderActivePage = () => {
+    // If in Citizen Portal mode, render Citizen Portal
+    if (portalMode === 'PUBLIC_CITIZEN') {
+      return <CitizenPortal />;
+    }
+
+    // If in Backend Engineer mode, render Backend Portal
+    if (portalMode === 'BACKEND_ENGINEER') {
+      return <BackendEngineerPortal />;
+    }
+
+    // Police Operations Portal
     switch (activeTab) {
       case 'dashboard':
       case 'command-centre':
@@ -45,6 +61,10 @@ export const App: React.FC = () => {
       case 'incident-reconstruction':
       case 'multi-camera':
         return <IncidentReconstruction />;
+      case 'citizen-reports-review':
+        return <CitizenReportsReview />;
+      case 'incident-audit':
+        return <IncidentAuditReports />;
       case 'vehicle-intelligence':
       case 'plate-search':
         return <VehicleIntelligence />;
@@ -63,8 +83,6 @@ export const App: React.FC = () => {
         return <InvestigationWorkspace />;
       case 'evidence':
         return <EvidenceManagement />;
-      case 'model-training':
-        return <AIModelTraining />;
       case 'camera-trust':
         return <CameraTrustSecurity />;
       case 'behaviour-intelligence':

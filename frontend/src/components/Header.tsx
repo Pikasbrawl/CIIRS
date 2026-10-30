@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Search, Bell, ChevronDown, User, ShieldCheck, 
-  CheckCircle2, Radio, Sparkles
+  CheckCircle2, Radio, Sparkles, Users, Shield, Terminal
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { Role } from '../types';
@@ -11,6 +11,8 @@ export const Header: React.FC = () => {
     currentUser, 
     activeRole, 
     switchRole, 
+    portalMode,
+    switchPortal,
     soundEnabled, 
     setSoundEnabled,
     setActiveTab
@@ -47,12 +49,14 @@ export const Header: React.FC = () => {
     return () => clearInterval(timer);
   }, []);
 
-  const roles: { role: Role; title: string; subtitle: string }[] = [
-    { role: 'INVESTIGATOR', title: 'Investigator', subtitle: 'Control Room' },
-    { role: 'OPERATOR', title: 'Senior Operator', subtitle: 'Monitoring Division' },
-    { role: 'POLICE_RESPONDER', title: 'Police Dispatch Lead', subtitle: 'Rapid Dispatch' },
-    { role: 'MEDICAL_RESPONDER', title: 'EMS Paramedic Lead', subtitle: 'Emergency Care' },
-    { role: 'ADMIN', title: 'System Director', subtitle: 'City Command' }
+  const roles: { role: Role; title: string; subtitle: string; portal: string }[] = [
+    { role: 'OPERATOR', title: 'Senior Operator Arjun Singh', subtitle: 'Monitoring Division', portal: 'POLICE_OPERATIONS' },
+    { role: 'INVESTIGATOR', title: 'Detective Maya Lin', subtitle: 'Forensic Reconstruction', portal: 'POLICE_OPERATIONS' },
+    { role: 'POLICE_RESPONDER', title: 'Inspector Rajesh Sharma', subtitle: 'Police Dispatch Lead', portal: 'POLICE_OPERATIONS' },
+    { role: 'MEDICAL_RESPONDER', title: 'Dr. Harleen Kaur', subtitle: 'PGIMER Trauma / EMS', portal: 'POLICE_OPERATIONS' },
+    { role: 'ADMIN', title: 'Director Sarah Vance', subtitle: 'City Command', portal: 'POLICE_OPERATIONS' },
+    { role: 'CITIZEN', title: 'Pooja Sharma (Citizen)', subtitle: 'Sector 17 Resident', portal: 'PUBLIC_CITIZEN' },
+    { role: 'ENGINEER', title: 'Vikram Mehta (DevOps)', subtitle: 'Infrastructure Lead', portal: 'BACKEND_ENGINEER' }
   ];
 
   const handleSearch = (e: React.FormEvent) => {
@@ -97,9 +101,53 @@ export const Header: React.FC = () => {
         </div>
       </div>
 
-      {/* Center: Search Field */}
-      <div className="hidden md:flex flex-1 max-w-md mx-6">
-        <form onSubmit={handleSearch} className="w-full relative">
+      {/* Center: Role-Based Portal Switcher & Quick Search */}
+      <div className="hidden lg:flex items-center space-x-3 flex-1 max-w-2xl mx-5">
+        {/* Portal Switcher Buttons */}
+        <div className="flex items-center bg-[#EDF4FC] p-1 rounded-xl border border-[#CBDCEE] space-x-1 shrink-0">
+          <button
+            type="button"
+            onClick={() => switchPortal('PUBLIC_CITIZEN')}
+            className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
+              portalMode === 'PUBLIC_CITIZEN'
+                ? 'bg-white text-[#2463A6] shadow-sm shadow-[#172F50]/5 border border-[#CBDCEE]'
+                : 'text-[#526477] hover:text-[#172F50]'
+            }`}
+            title="Switch to Public / Citizen Portal"
+          >
+            <Users className="w-3.5 h-3.5 text-[#2463A6]" />
+            <span>Public / Citizen</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => switchPortal('POLICE_OPERATIONS')}
+            className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
+              portalMode === 'POLICE_OPERATIONS'
+                ? 'bg-[#172F50] text-white shadow-sm shadow-[#172F50]/20'
+                : 'text-[#526477] hover:text-[#172F50]'
+            }`}
+            title="Switch to Police / Operations Portal"
+          >
+            <Shield className="w-3.5 h-3.5 text-[#60A5FA]" />
+            <span>Police / Operations</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => switchPortal('BACKEND_ENGINEER')}
+            className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
+              portalMode === 'BACKEND_ENGINEER'
+                ? 'bg-white text-[#0D9488] shadow-sm shadow-[#172F50]/5 border border-[#CBDCEE]'
+                : 'text-[#526477] hover:text-[#172F50]'
+            }`}
+            title="Switch to Backend Engineer / Systems Admin Portal"
+          >
+            <Terminal className="w-3.5 h-3.5 text-[#0D9488]" />
+            <span>Backend Engineer</span>
+          </button>
+        </div>
+
+        {/* Search Field */}
+        <form onSubmit={handleSearch} className="flex-1 relative">
           <Search className="w-4 h-4 text-[#8291A2] absolute left-3.5 top-1/2 -translate-y-1/2" />
           <input
             type="text"

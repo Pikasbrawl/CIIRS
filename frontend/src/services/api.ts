@@ -321,7 +321,7 @@ export const api = {
   },
 
   // Public Incident Reporting
-  submitPublicReport: async (reportData: Partial<PublicIncidentReport>): Promise<PublicIncidentReport> => {
+  submitPublicReport: async (reportData: Partial<PublicIncidentReport>): Promise<any> => {
     const res = await fetch(`${BASE_URL}/reports`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -330,13 +330,133 @@ export const api = {
     return res.json();
   },
 
-  getPublicReports: async (): Promise<PublicIncidentReport[]> => {
-    const res = await fetch(`${BASE_URL}/reports`);
+  getPublicReports: async (status?: string): Promise<PublicIncidentReport[]> => {
+    const url = status ? `${BASE_URL}/reports?status=${encodeURIComponent(status)}` : `${BASE_URL}/reports`;
+    const res = await fetch(url);
     return res.json();
   },
 
-  trackPublicReport: async (reportCode: string): Promise<PublicIncidentReport> => {
+  trackPublicReport: async (reportCode: string): Promise<any> => {
     const res = await fetch(`${BASE_URL}/reports/${encodeURIComponent(reportCode)}`);
+    return res.json();
+  },
+
+  verifyCitizenReport: async (reportCode: string, payload: { action: string; review_notes: string; operator_name?: string; severity?: string }): Promise<any> => {
+    const res = await fetch(`${BASE_URL}/reports/${encodeURIComponent(reportCode)}/verify`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    return res.json();
+  },
+
+  // Incident Audit & Scene Reports
+  getAuditableIncidents: async (): Promise<any[]> => {
+    const res = await fetch(`${BASE_URL}/audit/incidents`);
+    return res.json();
+  },
+
+  getIncidentAuditEntries: async (incidentId: string | number): Promise<any[]> => {
+    const res = await fetch(`${BASE_URL}/audit/incidents/${incidentId}/entries`);
+    return res.json();
+  },
+
+  addIncidentAuditEntry: async (incidentId: string | number, entry: any): Promise<any> => {
+    const res = await fetch(`${BASE_URL}/audit/incidents/${incidentId}/entries`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(entry)
+    });
+    return res.json();
+  },
+
+  reviseIncidentAuditEntry: async (incidentId: string | number, entryId: number, revision: any): Promise<any> => {
+    const res = await fetch(`${BASE_URL}/audit/incidents/${incidentId}/entries/${entryId}/revise`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(revision)
+    });
+    return res.json();
+  },
+
+  verifyAuditChain: async (incidentId: string | number): Promise<any> => {
+    const res = await fetch(`${BASE_URL}/audit/incidents/${incidentId}/verify-chain`);
+    return res.json();
+  },
+
+  // Forensic Reconstruction Tools
+  getReconstructionBookmarks: async (incidentId?: number): Promise<any[]> => {
+    const url = incidentId ? `${BASE_URL}/reconstruction/bookmarks?incident_id=${incidentId}` : `${BASE_URL}/reconstruction/bookmarks`;
+    const res = await fetch(url);
+    return res.json();
+  },
+
+  createReconstructionBookmark: async (payload: any): Promise<any> => {
+    const res = await fetch(`${BASE_URL}/reconstruction/bookmarks`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    return res.json();
+  },
+
+  deleteReconstructionBookmark: async (id: number): Promise<any> => {
+    const res = await fetch(`${BASE_URL}/reconstruction/bookmarks/${id}`, {
+      method: 'DELETE'
+    });
+    return res.json();
+  },
+
+  getReconstructionSnapshots: async (incidentId?: number): Promise<any[]> => {
+    const url = incidentId ? `${BASE_URL}/reconstruction/snapshots?incident_id=${incidentId}` : `${BASE_URL}/reconstruction/snapshots`;
+    const res = await fetch(url);
+    return res.json();
+  },
+
+  createReconstructionSnapshot: async (payload: any): Promise<any> => {
+    const res = await fetch(`${BASE_URL}/reconstruction/snapshots`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    return res.json();
+  },
+
+  getReconstructionClips: async (incidentId?: number): Promise<any[]> => {
+    const url = incidentId ? `${BASE_URL}/reconstruction/clips?incident_id=${incidentId}` : `${BASE_URL}/reconstruction/clips`;
+    const res = await fetch(url);
+    return res.json();
+  },
+
+  createReconstructionClip: async (payload: any): Promise<any> => {
+    const res = await fetch(`${BASE_URL}/reconstruction/clips`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    return res.json();
+  },
+
+  // System Health & Telemetry for Backend Engineer Portal
+  getSystemHealth: async (): Promise<any> => {
+    const res = await fetch(`${BASE_URL}/system/health`);
+    return res.json();
+  },
+
+  getSystemLogs: async (lines: number = 50): Promise<any[]> => {
+    const res = await fetch(`${BASE_URL}/system/logs?lines=${lines}`);
+    return res.json();
+  },
+
+  getSystemUsers: async (): Promise<any[]> => {
+    const res = await fetch(`${BASE_URL}/system/users`);
+    return res.json();
+  },
+
+  triggerSystemBackup: async (): Promise<any> => {
+    const res = await fetch(`${BASE_URL}/system/backup`, {
+      method: 'POST'
+    });
     return res.json();
   }
 };

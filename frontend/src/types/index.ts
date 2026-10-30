@@ -1,4 +1,6 @@
-export type Role = 'ADMIN' | 'OPERATOR' | 'POLICE_RESPONDER' | 'MEDICAL_RESPONDER' | 'INVESTIGATOR';
+export type PortalMode = 'PUBLIC_CITIZEN' | 'POLICE_OPERATIONS' | 'BACKEND_ENGINEER';
+
+export type Role = 'ADMIN' | 'OPERATOR' | 'POLICE_RESPONDER' | 'MEDICAL_RESPONDER' | 'INVESTIGATOR' | 'CITIZEN' | 'ENGINEER';
 
 export interface User {
   id: number;
@@ -52,8 +54,17 @@ export interface PublicIncidentReport {
   address: string;
   reporter_name?: string;
   reporter_phone?: string;
+  reporter_contact?: string;
   attachment_url?: string;
-  status: 'PENDING' | 'VERIFIED' | 'DISMISSED';
+  status: 'SUBMITTED' | 'UNDER_REVIEW' | 'VERIFIED' | 'DISMISSED' | 'PENDING';
+  review_notes?: string;
+  status_history?: Array<{
+    status: string;
+    timestamp: string;
+    note: string;
+  }>;
+  incident_id?: number;
+  incident_number?: string;
   created_at: string;
 }
 
@@ -252,6 +263,68 @@ export interface ModelVersion {
   f1_score: number;
   is_active: boolean;
   deployed_at?: string;
+}
+
+export interface IncidentAuditEntry {
+  id: number;
+  incident_id?: number;
+  incident_number: string;
+  agency_type: 'POLICE' | 'MEDICAL' | 'FIRE_AND_RESCUE' | 'CONTROL_ROOM' | 'CITIZEN_UPDATE';
+  role: string;
+  author_name: string;
+  organization: string;
+  badge_id?: string;
+  entry_title: string;
+  entry_category: string;
+  description: string;
+  location: string;
+  patient_count: number;
+  triage_status?: string;
+  evidence_url?: string;
+  evidence_sha256?: string;
+  revision_number: number;
+  parent_entry_id?: number;
+  previous_entry_hash: string;
+  entry_hash: string;
+  created_at: string;
+}
+
+export interface ReconstructionBookmark {
+  id: number;
+  incident_id?: number;
+  camera_id: string;
+  timestamp_seconds: number;
+  time_display: string;
+  label: string;
+  notes?: string;
+  author_name: string;
+  created_at: string;
+}
+
+export interface ReconstructionSnapshot {
+  id: number;
+  incident_id?: number;
+  camera_id: string;
+  timestamp_seconds: number;
+  time_display: string;
+  image_url: string;
+  sha256_hash: string;
+  captured_by: string;
+  notes?: string;
+  created_at: string;
+}
+
+export interface ReconstructionClip {
+  id: number;
+  incident_id?: number;
+  camera_id: string;
+  start_seconds: number;
+  end_seconds: number;
+  title: string;
+  video_url: string;
+  sha256_hash: string;
+  exported_by: string;
+  created_at: string;
 }
 
 export interface LiveAlert {

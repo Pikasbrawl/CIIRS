@@ -21,6 +21,9 @@ from app.api.analytics import router as analytics_router
 from app.api.multi_camera import router as multi_cam_router
 from app.api.vehicles import router as vehicles_router
 from app.api.public_reports import router as reports_router
+from app.api.audit_reports import router as audit_router
+from app.api.reconstruction import router as reconstruction_router
+from app.api.system_health import router as system_router
 from app.api.ws import router as ws_router
 
 # Initialize database schema
@@ -61,6 +64,9 @@ app.include_router(analytics_router, prefix=settings.API_V1_STR)
 app.include_router(multi_cam_router, prefix=settings.API_V1_STR)
 app.include_router(vehicles_router, prefix=settings.API_V1_STR)
 app.include_router(reports_router, prefix=settings.API_V1_STR)
+app.include_router(audit_router, prefix=settings.API_V1_STR)
+app.include_router(reconstruction_router, prefix=settings.API_V1_STR)
+app.include_router(system_router, prefix=settings.API_V1_STR)
 app.include_router(ws_router)
 
 # Mount static directories

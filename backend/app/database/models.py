@@ -362,16 +362,86 @@ class PublicIncidentReport(Base):
     __tablename__ = "public_incident_reports"
     
     id = Column(Integer, primary_key=True, index=True)
-    report_code = Column(String(50), unique=True, index=True, nullable=False) # e.g. REP-2026-7841
+    report_code = Column(String(50), unique=True, index=True, nullable=False) # e.g. CIT-2026-7841
     category = Column(String(100), nullable=False)
     description = Column(Text, nullable=False)
     latitude = Column(Float, nullable=False)
     longitude = Column(Float, nullable=False)
     address = Column(String(255), nullable=True)
     attachment_url = Column(String(500), nullable=True)
+    reporter_name = Column(String(100), default="Pooja Sharma")
     reporter_contact = Column(String(100), nullable=True)
     status = Column(String(50), default="SUBMITTED") # SUBMITTED, UNDER_REVIEW, VERIFIED, DISMISSED
     review_notes = Column(Text, nullable=True)
+    status_history = Column(JSON, default=list)
+    incident_id = Column(Integer, ForeignKey("incidents.id"), nullable=True)
+    incident_number = Column(String(50), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+class IncidentAuditEntry(Base):
+    __tablename__ = "incident_audit_entries"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    incident_id = Column(Integer, ForeignKey("incidents.id"), nullable=True, index=True)
+    incident_number = Column(String(50), nullable=False, index=True)
+    agency_type = Column(String(50), nullable=False) # POLICE, MEDICAL, FIRE_AND_RESCUE, CONTROL_ROOM, CITIZEN_UPDATE
+    role = Column(String(100), nullable=False) # Police Officer, Hospital / Medical Responder, Fire & Rescue Responder, Control-Room Operator, Citizen
+    author_name = Column(String(100), nullable=False)
+    organization = Column(String(150), nullable=False)
+    badge_id = Column(String(50), nullable=True)
+    entry_title = Column(String(200), nullable=False)
+    entry_category = Column(String(100), nullable=False) # INITIAL_SCENE_ASSESSMENT, PATIENT_TRIAGE_AND_TRANSPORT, HAZARD_CONTAINMENT, EVIDENCE_COLLECTION, DISPATCH_TIMELINE, SUPPLEMENTARY_EVIDENCE
+    description = Column(Text, nullable=False)
+    location = Column(String(200), nullable=False)
+    patient_count = Column(Integer, default=0)
+    triage_status = Column(String(50), nullable=True) # NONE, GREEN_MINOR, YELLOW_DELAYED, RED_IMMEDIATE, BLACK_DECEASED
+    evidence_url = Column(String(500), nullable=True)
+    evidence_sha256 = Column(String(64), nullable=True)
+    revision_number = Column(Integer, default=1)
+    parent_entry_id = Column(Integer, ForeignKey("incident_audit_entries.id"), nullable=True)
+    previous_entry_hash = Column(String(64), default="0" * 64)
+    entry_hash = Column(String(64), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+class ReconstructionBookmark(Base):
+    __tablename__ = "reconstruction_bookmarks"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    incident_id = Column(Integer, ForeignKey("incidents.id"), nullable=True, index=True)
+    camera_id = Column(String(50), nullable=False)
+    timestamp_seconds = Column(Float, nullable=False)
+    time_display = Column(String(50), nullable=False)
+    label = Column(String(150), nullable=False)
+    notes = Column(Text, nullable=True)
+    author_name = Column(String(100), default="Investigator Maya Lin")
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+class ReconstructionSnapshot(Base):
+    __tablename__ = "reconstruction_snapshots"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    incident_id = Column(Integer, ForeignKey("incidents.id"), nullable=True, index=True)
+    camera_id = Column(String(50), nullable=False)
+    timestamp_seconds = Column(Float, nullable=False)
+    time_display = Column(String(50), nullable=False)
+    image_url = Column(String(500), nullable=False)
+    sha256_hash = Column(String(64), nullable=False)
+    captured_by = Column(String(100), default="Forensic Unit")
+    notes = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+class ReconstructionClip(Base):
+    __tablename__ = "reconstruction_clips"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    incident_id = Column(Integer, ForeignKey("incidents.id"), nullable=True, index=True)
+    camera_id = Column(String(50), nullable=False)
+    start_seconds = Column(Float, nullable=False)
+    end_seconds = Column(Float, nullable=False)
+    title = Column(String(150), nullable=False)
+    video_url = Column(String(500), nullable=False)
+    sha256_hash = Column(String(64), nullable=False)
+    exported_by = Column(String(100), default="Forensic Unit")
     created_at = Column(DateTime, default=datetime.utcnow)
 
 class VehicleDetection(Base):
