@@ -45,7 +45,21 @@ export type NavTab =
   | 'camera-trust'
   | 'model-training';
 
+export type AuthView = 'ROLE_SELECTION' | 'LOGIN_CITIZEN' | 'LOGIN_POLICE' | 'LOGIN_ENGINEER' | null;
+
 interface AppContextType {
+  // Authentication & RBAC
+  isAuthenticated: boolean;
+  authToken: string | null;
+  authView: AuthView;
+  setAuthView: (view: AuthView) => void;
+  authError: string | null;
+  setAuthError: (err: string | null) => void;
+  loginWithCredentials: (username: string, password: string, portal?: string) => Promise<any>;
+  registerCitizenAccount: (formData: any) => Promise<any>;
+  logout: () => void;
+  navigateToLogin: (view?: AuthView) => void;
+
   portalMode: PortalMode;
   setPortalMode: (mode: PortalMode) => void;
   switchPortal: (mode: PortalMode) => void;
@@ -79,15 +93,159 @@ const defaultUser: User = {
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [portalMode, setPortalMode] = useState<PortalMode>('POLICE_OPERATIONS');
-  const [activeTab, setActiveTab] = useState<NavTab>('dashboard');
-  const [currentUser, setCurrentUser] = useState<User>(defaultUser);
-  const [activeRole, setActiveRole] = useState<Role>('OPERATOR');
+  // Authentication & Session Persistence
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
+    return !!localStorage.getItem('ciirs_token');
+  });
+  const [authToken, setAuthToken] = useState<string | null>(() => {
+    return localStorage.getItem('ciirs_token') || null;
+  });
+  const [authView, setAuthView] = useState<AuthView>(() => {
+    return localStorage.getItem('ciirs_token') ? null : 'ROLE_SELECTION';
+  });
+  const [authError, setAuthError] = useState<string | null>(null);
+
+  const [currentUser, setCurrentUser] = useState<User>(() => {
+    try {
+      const saved = localStorage.getItem('ciirs_user');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return defaultUser;
+  });
+
+  const [portalMode, setPortalMode] = useState<PortalMode>(() => {
+    try {
+      const saved = localStorage.getItem('ciirs_portal') as PortalMode;
+      if (saved) return saved;
+    } catch {}
+    return 'POLICE_OPERATIONS';
+  });
+
+  const [activeTab, setActiveTab] = useState<NavTab>(() => {
+    try {
+      const saved = localStorage.getItem('ciirs_portal') as PortalMode;
+      if (saved === 'PUBLIC_CITIZEN') return 'citizen-dashboard';
+      if (saved === 'BACKEND_ENGINEER') return 'tech-dashboard';
+    } catch {}
+    return 'dashboard';
+  });
+
+  const [activeRole, setActiveRole] = useState<Role>(() => {
+    try {
+      const saved = localStorage.getItem('ciirs_user');
+      if (saved) return JSON.parse(saved).role as Role;
+    } catch {}
+    return 'OPERATOR';
+  });
+
   const [alerts, setAlerts] = useState<LiveAlert[]>([]);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [isDemoMode, setIsDemoMode] = useState(true);
   const [isTriggeringScenario, setIsTriggeringScenario] = useState(false);
   const [pendingIncidentsCount, setPendingIncidentsCount] = useState(1);
+
+  // Validate session on boot
+  useEffect(() => {
+    const token = localStorage.getItem('ciirs_token');
+    if (token) {
+      api.getMe(token)
+        .then((userData) => {
+          setCurrentUser(userData);
+          setActiveRole(userData.role as Role);
+          if (userData.portal) {
+            setPortalMode(userData.portal as PortalMode);
+          }
+        })
+        .catch(() => {
+          // If session is expired or invalid, reset
+          localStorage.removeItem('ciirs_token');
+          localStorage.removeItem('ciirs_user');
+          localStorage.removeItem('ciirs_portal');
+          setIsAuthenticated(false);
+          setAuthToken(null);
+          setAuthView('ROLE_SELECTION');
+        });
+    }
+  }, []);
+
+  const loginWithCredentials = async (username: string, password: string, portal?: string) => {
+    setAuthError(null);
+    try {
+      const data = await api.login(username, password, portal);
+      const token = data.access_token;
+      const user = data.user;
+      const userPortal: PortalMode = data.portal || (user.role === 'CITIZEN' ? 'PUBLIC_CITIZEN' : user.role === 'ENGINEER' ? 'BACKEND_ENGINEER' : 'POLICE_OPERATIONS');
+      
+      localStorage.setItem('ciirs_token', token);
+      localStorage.setItem('ciirs_user', JSON.stringify(user));
+      localStorage.setItem('ciirs_portal', userPortal);
+
+      setAuthToken(token);
+      setCurrentUser(user);
+      setActiveRole(user.role as Role);
+      setPortalMode(userPortal);
+      setIsAuthenticated(true);
+      setAuthView(null);
+
+      if (userPortal === 'PUBLIC_CITIZEN') {
+        setActiveTab('citizen-dashboard');
+      } else if (userPortal === 'BACKEND_ENGINEER') {
+        setActiveTab('tech-dashboard');
+      } else {
+        setActiveTab('dashboard');
+      }
+      return data;
+    } catch (err: any) {
+      const msg = err.message || 'Authentication error.';
+      setAuthError(msg);
+      throw err;
+    }
+  };
+
+  const registerCitizenAccount = async (formData: any) => {
+    setAuthError(null);
+    try {
+      const data = await api.registerCitizen(formData);
+      const token = data.access_token;
+      const user = data.user;
+      const userPortal: PortalMode = 'PUBLIC_CITIZEN';
+
+      localStorage.setItem('ciirs_token', token);
+      localStorage.setItem('ciirs_user', JSON.stringify(user));
+      localStorage.setItem('ciirs_portal', userPortal);
+
+      setAuthToken(token);
+      setCurrentUser(user);
+      setActiveRole('CITIZEN');
+      setPortalMode(userPortal);
+      setIsAuthenticated(true);
+      setAuthView(null);
+      setActiveTab('citizen-dashboard');
+      return data;
+    } catch (err: any) {
+      const msg = err.message || 'Registration error.';
+      setAuthError(msg);
+      throw err;
+    }
+  };
+
+  const logout = () => {
+    try {
+      api.logout().catch(() => {});
+    } catch {}
+    localStorage.removeItem('ciirs_token');
+    localStorage.removeItem('ciirs_user');
+    localStorage.removeItem('ciirs_portal');
+    setAuthToken(null);
+    setIsAuthenticated(false);
+    setAuthView('ROLE_SELECTION');
+    setAuthError(null);
+  };
+
+  const navigateToLogin = (view: AuthView = 'ROLE_SELECTION') => {
+    setAuthView(view);
+    setAuthError(null);
+  };
 
   const switchPortal = (mode: PortalMode) => {
     setPortalMode(mode);
@@ -261,6 +419,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   return (
     <AppContext.Provider
       value={{
+        isAuthenticated,
+        authToken,
+        authView,
+        setAuthView,
+        authError,
+        setAuthError,
+        loginWithCredentials,
+        registerCitizenAccount,
+        logout,
+        navigateToLogin,
         portalMode,
         setPortalMode,
         switchPortal,

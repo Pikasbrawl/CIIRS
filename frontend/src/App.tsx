@@ -30,9 +30,15 @@ import { CitizenPortal } from './pages/CitizenPortal';
 import { CitizenReportsReview } from './pages/CitizenReportsReview';
 import { IncidentAuditReports } from './pages/IncidentAuditReports';
 import { BackendEngineerPortal } from './pages/BackendEngineerPortal';
+import { AuthPortal } from './pages/AuthPortal';
 
 export const App: React.FC = () => {
-  const { activeTab, portalMode } = useApp();
+  const { activeTab, portalMode, isAuthenticated } = useApp();
+
+  // If user is not authenticated, render the Three-Role Login Portal
+  if (!isAuthenticated) {
+    return <AuthPortal />;
+  }
 
   const renderActivePage = () => {
     // If in Citizen Portal mode, render Citizen Portal
@@ -98,8 +104,8 @@ export const App: React.FC = () => {
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-[#F4F8FC] text-[#526477] font-sans">
-      {/* 14-Module Navigation Sidebar */}
-      <Navbar />
+      {/* 14-Module Navigation Sidebar (Police Operations Portal) */}
+      {portalMode === 'POLICE_OPERATIONS' && <Navbar />}
 
       {/* Main Operations Frame */}
       <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">

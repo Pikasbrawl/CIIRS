@@ -14,12 +14,55 @@ export const api = {
   },
 
   // Auth
-  login: async (username: string, password: string) => {
+  login: async (username: string, password: string, portal?: string) => {
     const res = await fetch(`${BASE_URL}/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, password })
+      body: JSON.stringify({ username, password, portal })
     });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: 'Authentication error occurred.' }));
+      throw new Error(err.detail || `Login failed with status ${res.status}`);
+    }
+    return res.json();
+  },
+
+  registerCitizen: async (data: {
+    full_name: string;
+    email: string;
+    phone_number: string;
+    password: string;
+    confirm_password?: string;
+  }) => {
+    const res = await fetch(`${BASE_URL}/auth/register-citizen`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: 'Registration error occurred.' }));
+      throw new Error(err.detail || `Registration failed with status ${res.status}`);
+    }
+    return res.json();
+  },
+
+  getMe: async (token: string) => {
+    const res = await fetch(`${BASE_URL}/auth/me`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (!res.ok) {
+      throw new Error(`Failed to validate session (${res.status})`);
+    }
+    return res.json();
+  },
+
+  logout: async () => {
+    const res = await fetch(`${BASE_URL}/auth/logout`, { method: 'POST' });
+    return res.json();
+  },
+
+  getDemoAccounts: async () => {
+    const res = await fetch(`${BASE_URL}/auth/demo-accounts`);
     return res.json();
   },
 

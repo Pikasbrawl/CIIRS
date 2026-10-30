@@ -6,11 +6,20 @@ from pydantic import BaseModel, Field
 class Token(BaseModel):
     access_token: str
     token_type: str
+    portal: Optional[str] = None
     user: Dict[str, Any]
 
 class LoginRequest(BaseModel):
     username: str
     password: str
+    portal: Optional[str] = None
+
+class CitizenRegisterRequest(BaseModel):
+    full_name: str
+    email: str
+    phone_number: str
+    password: str
+    confirm_password: Optional[str] = None
 
 class UserCreate(BaseModel):
     username: str

@@ -14,6 +14,7 @@ class User(Base):
     role = Column(String(50), default="OPERATOR") # ADMIN, OPERATOR, POLICE_RESPONDER, MEDICAL_RESPONDER, INVESTIGATOR
     badge_number = Column(String(50), nullable=True)
     department = Column(String(100), default="City Operations Center")
+    phone_number = Column(String(20), nullable=True)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 

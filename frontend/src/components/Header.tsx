@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Search, Bell, ChevronDown, User, ShieldCheck, 
-  CheckCircle2, Radio, Sparkles, Users, Shield, Terminal
+  CheckCircle2, Radio, Sparkles, Users, Shield, Terminal, LogOut
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { Role } from '../types';
@@ -10,9 +10,8 @@ export const Header: React.FC = () => {
   const { 
     currentUser, 
     activeRole, 
-    switchRole, 
     portalMode,
-    switchPortal,
+    logout,
     soundEnabled, 
     setSoundEnabled,
     setActiveTab
@@ -21,7 +20,7 @@ export const Header: React.FC = () => {
   const [currentTime, setCurrentTime] = useState<string>('');
   const [currentDate, setCurrentDate] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState('');
-  const [showRoleMenu, setShowRoleMenu] = useState(false);
+  const [showUserMenu, setShowUserMenu] = useState(false);
 
   useEffect(() => {
     const updateDateTime = () => {
@@ -49,16 +48,6 @@ export const Header: React.FC = () => {
     return () => clearInterval(timer);
   }, []);
 
-  const roles: { role: Role; title: string; subtitle: string; portal: string }[] = [
-    { role: 'OPERATOR', title: 'Senior Operator Arjun Singh', subtitle: 'Monitoring Division', portal: 'POLICE_OPERATIONS' },
-    { role: 'INVESTIGATOR', title: 'Detective Maya Lin', subtitle: 'Forensic Reconstruction', portal: 'POLICE_OPERATIONS' },
-    { role: 'POLICE_RESPONDER', title: 'Inspector Rajesh Sharma', subtitle: 'Police Dispatch Lead', portal: 'POLICE_OPERATIONS' },
-    { role: 'MEDICAL_RESPONDER', title: 'Dr. Harleen Kaur', subtitle: 'PGIMER Trauma / EMS', portal: 'POLICE_OPERATIONS' },
-    { role: 'ADMIN', title: 'Director Sarah Vance', subtitle: 'City Command', portal: 'POLICE_OPERATIONS' },
-    { role: 'CITIZEN', title: 'Pooja Sharma (Citizen)', subtitle: 'Sector 17 Resident', portal: 'PUBLIC_CITIZEN' },
-    { role: 'ENGINEER', title: 'Vikram Mehta (DevOps)', subtitle: 'Infrastructure Lead', portal: 'BACKEND_ENGINEER' }
-  ];
-
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (!searchQuery.trim()) return;
@@ -73,12 +62,12 @@ export const Header: React.FC = () => {
   };
 
   return (
-    <header className="h-16 bg-[#FFFFFF] border-b border-[#E1EAF2] px-5 flex items-center justify-between sticky top-0 z-30 shadow-[0_1px_3px_rgba(23,47,80,0.04)]">
+    <header className="h-16 bg-[#FFFFFF] border-b border-[#E1EAF2] px-5 flex items-center justify-between sticky top-0 z-30 shadow-[0_1px_3px_rgba(23,47,80,0.04)] select-none">
       {/* Left: Brand Identity */}
       <div className="flex items-center space-x-3.5">
         {/* Emblem Badge */}
         <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-[#2463A6] to-[#172F50] flex items-center justify-center text-white shadow-sm shadow-[#2463A6]/20">
-          <span className="font-extrabold text-sm tracking-tighter">CIIRS</span>
+          <span className="font-extrabold text-sm tracking-tighter font-mono">CIIRS</span>
         </div>
 
         <div>
@@ -101,50 +90,39 @@ export const Header: React.FC = () => {
         </div>
       </div>
 
-      {/* Center: Role-Based Portal Switcher & Quick Search */}
+      {/* Center: Active Verified Portal Identity & Quick Search */}
       <div className="hidden lg:flex items-center space-x-3 flex-1 max-w-2xl mx-5">
-        {/* Portal Switcher Buttons */}
-        <div className="flex items-center bg-[#EDF4FC] p-1 rounded-xl border border-[#CBDCEE] space-x-1 shrink-0">
-          <button
-            type="button"
-            onClick={() => switchPortal('PUBLIC_CITIZEN')}
-            className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
-              portalMode === 'PUBLIC_CITIZEN'
-                ? 'bg-white text-[#2463A6] shadow-sm shadow-[#172F50]/5 border border-[#CBDCEE]'
-                : 'text-[#526477] hover:text-[#172F50]'
-            }`}
-            title="Switch to Public / Citizen Portal"
-          >
+        
+        {/* Active Portal Verified Badge */}
+        {portalMode === 'PUBLIC_CITIZEN' && (
+          <div className="flex items-center space-x-2 px-3 py-1.5 rounded-xl bg-[#EBF3FC] border border-[#CBDCEE] text-xs font-bold text-[#2463A6] shrink-0 shadow-2xs">
             <Users className="w-3.5 h-3.5 text-[#2463A6]" />
-            <span>Public / Citizen</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => switchPortal('POLICE_OPERATIONS')}
-            className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
-              portalMode === 'POLICE_OPERATIONS'
-                ? 'bg-[#172F50] text-white shadow-sm shadow-[#172F50]/20'
-                : 'text-[#526477] hover:text-[#172F50]'
-            }`}
-            title="Switch to Police / Operations Portal"
-          >
+            <span>Public / Citizen Portal</span>
+            <span className="text-[9.5px] font-mono bg-white text-[#2463A6] px-1.5 py-0.2 rounded border border-[#CBDCEE]">
+              {currentUser.badge_number || 'RESIDENT'}
+            </span>
+          </div>
+        )}
+
+        {portalMode === 'POLICE_OPERATIONS' && (
+          <div className="flex items-center space-x-2 px-3 py-1.5 rounded-xl bg-[#172F50] text-white text-xs font-bold shrink-0 shadow-xs">
             <Shield className="w-3.5 h-3.5 text-[#60A5FA]" />
-            <span>Police / Operations</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => switchPortal('BACKEND_ENGINEER')}
-            className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
-              portalMode === 'BACKEND_ENGINEER'
-                ? 'bg-white text-[#0D9488] shadow-sm shadow-[#172F50]/5 border border-[#CBDCEE]'
-                : 'text-[#526477] hover:text-[#172F50]'
-            }`}
-            title="Switch to Backend Engineer / Systems Admin Portal"
-          >
+            <span>Police Operations Portal</span>
+            <span className="text-[9.5px] font-mono bg-white/15 text-sky-200 px-1.5 py-0.2 rounded border border-white/20">
+              {currentUser.badge_number || 'LAW ENFORCEMENT'}
+            </span>
+          </div>
+        )}
+
+        {portalMode === 'BACKEND_ENGINEER' && (
+          <div className="flex items-center space-x-2 px-3 py-1.5 rounded-xl bg-teal-50 border border-teal-200 text-xs font-bold text-[#0D9488] shrink-0 shadow-2xs">
             <Terminal className="w-3.5 h-3.5 text-[#0D9488]" />
-            <span>Backend Engineer</span>
-          </button>
-        </div>
+            <span>Backend Engineer Portal</span>
+            <span className="text-[9.5px] font-mono bg-white text-[#0D9488] px-1.5 py-0.2 rounded border border-teal-200">
+              {currentUser.badge_number || 'SYS-ADMIN'}
+            </span>
+          </div>
+        )}
 
         {/* Search Field */}
         <form onSubmit={handleSearch} className="flex-1 relative">
@@ -159,8 +137,9 @@ export const Header: React.FC = () => {
         </form>
       </div>
 
-      {/* Right: Telemetry & Controls */}
-      <div className="flex items-center space-x-4">
+      {/* Right: Telemetry & Authenticated User Controls */}
+      <div className="flex items-center space-x-3.5">
+        
         {/* LIVE Status Badge */}
         <div className="flex items-center space-x-1.5 px-2.5 py-1 rounded-full bg-[#FEE2E2] border border-[#FECACA] text-[#E34D59] text-xs font-semibold tracking-wide">
           <span className="w-2 h-2 rounded-full bg-[#E34D59] animate-pulse"></span>
@@ -174,59 +153,79 @@ export const Header: React.FC = () => {
           title="Recent Early Warning Alerts"
         >
           <Bell className="w-4 h-4" />
-          <span className="absolute 1 top-1 right-1 w-4 h-4 bg-[#E34D59] text-white text-[10px] font-bold rounded-full flex items-center justify-center border-2 border-white">
+          <span className="absolute top-1 right-1 w-4 h-4 bg-[#E34D59] text-white text-[10px] font-bold rounded-full flex items-center justify-center border-2 border-white">
             3
           </span>
         </button>
 
         <div className="h-6 w-[1px] bg-[#E1EAF2] hidden sm:block"></div>
 
-        {/* User Role Switcher Dropdown */}
+        {/* Authenticated User Profile Summary */}
         <div className="relative">
           <button
-            onClick={() => setShowRoleMenu(!showRoleMenu)}
+            onClick={() => setShowUserMenu(!showUserMenu)}
             className="flex items-center space-x-2 p-1.5 rounded-lg hover:bg-[#F4F8FC] transition text-left"
           >
-            <div className="w-8 h-8 rounded-full bg-[#DCEBFA] text-[#2463A6] flex items-center justify-center font-bold text-xs">
-              <User className="w-4 h-4" />
+            <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs ${
+              portalMode === 'PUBLIC_CITIZEN' ? 'bg-[#EBF3FC] text-[#2463A6]' :
+              portalMode === 'BACKEND_ENGINEER' ? 'bg-teal-50 text-[#0D9488]' :
+              'bg-[#172F50] text-white'
+            }`}>
+              {currentUser.full_name ? currentUser.full_name.charAt(0) : <User className="w-4 h-4" />}
             </div>
             <div className="hidden lg:block">
-              <div className="text-xs font-semibold text-[#172F50] leading-none">
-                {roles.find(r => r.role === activeRole)?.title || 'Investigator'}
+              <div className="text-xs font-semibold text-[#172F50] leading-none truncate max-w-[150px]">
+                {currentUser.full_name || 'Senior Operator'}
               </div>
-              <div className="text-[10px] text-[#8291A2] mt-0.5 leading-none">
-                {roles.find(r => r.role === activeRole)?.subtitle || 'Control Room'}
+              <div className="text-[10px] text-[#8291A2] mt-0.5 leading-none truncate max-w-[150px]">
+                {currentUser.department || currentUser.role}
               </div>
             </div>
             <ChevronDown className="w-3.5 h-3.5 text-[#8291A2]" />
           </button>
 
-          {showRoleMenu && (
-            <div className="absolute right-0 mt-2 w-56 bg-white border border-[#E1EAF2] rounded-xl shadow-lg shadow-[#172F50]/10 py-1.5 z-50">
-              <div className="px-3 py-1.5 border-b border-[#E1EAF2] text-[10px] font-bold uppercase tracking-wider text-[#8291A2]">
-                Switch Command Role
+          {showUserMenu && (
+            <div className="absolute right-0 mt-2 w-64 bg-white border border-[#CBDCEE] rounded-xl shadow-xl shadow-[#172F50]/10 py-2 z-50">
+              <div className="px-3.5 py-2 border-b border-[#E1EAF2]">
+                <div className="text-[10px] font-bold uppercase tracking-wider text-[#8291A2]">
+                  Authenticated Session
+                </div>
+                <div className="font-bold text-[#172F50] text-xs mt-1">
+                  {currentUser.full_name}
+                </div>
+                <div className="text-[11px] text-[#526477] font-mono mt-0.5">
+                  ID: {currentUser.username} • {currentUser.badge_number || 'N/A'}
+                </div>
+                <div className="text-[10px] text-[#8291A2] mt-0.5">
+                  {currentUser.department}
+                </div>
               </div>
-              {roles.map((r) => (
+
+              <div className="p-1.5">
                 <button
-                  key={r.role}
                   onClick={() => {
-                    switchRole(r.role);
-                    setShowRoleMenu(false);
+                    setShowUserMenu(false);
+                    logout();
                   }}
-                  className={`w-full text-left px-3 py-2 text-xs flex items-center justify-between hover:bg-[#F4F8FC] transition ${
-                    activeRole === r.role ? 'bg-[#DCEBFA]/60 text-[#2463A6] font-semibold' : 'text-[#526477]'
-                  }`}
+                  className="w-full text-left px-3 py-2 text-xs font-semibold text-rose-700 hover:bg-rose-50 rounded-lg transition flex items-center space-x-2"
                 >
-                  <div>
-                    <div className="font-medium text-[#172F50]">{r.title}</div>
-                    <div className="text-[10px] text-[#8291A2]">{r.subtitle}</div>
-                  </div>
-                  {activeRole === r.role && <CheckCircle2 className="w-3.5 h-3.5 text-[#2463A6]" />}
+                  <LogOut className="w-3.5 h-3.5 text-rose-600" />
+                  <span>Switch Account / Sign Out</span>
                 </button>
-              ))}
+              </div>
             </div>
           )}
         </div>
+
+        {/* Explicit Sign Out Button */}
+        <button
+          onClick={logout}
+          className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 transition shadow-2xs"
+          title="Sign out of CIIRS Command Network"
+        >
+          <LogOut className="w-3.5 h-3.5 text-rose-600" />
+          <span className="hidden sm:inline">Sign Out</span>
+        </button>
 
         <div className="h-6 w-[1px] bg-[#E1EAF2] hidden sm:block"></div>
 

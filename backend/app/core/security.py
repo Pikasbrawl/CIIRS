@@ -1,25 +1,26 @@
+import bcrypt
 from datetime import datetime, timedelta
 from typing import Optional, Any
 from jose import jwt
-from passlib.context import CryptContext
 from app.core.config import settings
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    # Support development bypass or standard bcrypt
+    """Verifies a plain password against its hashed representation."""
+    if not plain_password or not hashed_password:
+        return False
     if hashed_password.startswith("$2b$") or hashed_password.startswith("$2a$"):
         try:
-            return pwd_context.verify(plain_password, hashed_password)
+            return bcrypt.checkpw(plain_password.encode("utf-8"), hashed_password.encode("utf-8"))
         except Exception:
-            return plain_password == "admin123"
+            return False
+    # Backward compatibility for development seeds
+    if hashed_password.startswith("hashed_"):
+        return hashed_password == f"hashed_{plain_password}"
     return plain_password == hashed_password or plain_password == "admin123"
 
 def get_password_hash(password: str) -> str:
-    try:
-        return pwd_context.hash(password)
-    except Exception:
-        return f"hashed_{password}"
+    """Generates a secure bcrypt hash for a given password."""
+    return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
     to_encode = data.copy()
