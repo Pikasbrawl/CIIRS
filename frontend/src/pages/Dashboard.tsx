@@ -10,6 +10,7 @@ import 'leaflet/dist/leaflet.css';
 import { api } from '../services/api';
 import { useApp } from '../context/AppContext';
 import { Camera as CameraType, VehicleDetection, AlertItem } from '../types';
+import DashboardLiveCameraGrid from '../components/DashboardLiveFeeds';
 
 export const Dashboard: React.FC = () => {
   const { setActiveTab } = useApp();
@@ -47,13 +48,7 @@ export const Dashboard: React.FC = () => {
   const markersGroupRef = useRef<L.LayerGroup | null>(null);
   const searchMarkerRef = useRef<L.Marker | null>(null);
 
-  // Canvas animations for the 4 live feeds
-  const canvasRefs = [
-    useRef<HTMLCanvasElement | null>(null),
-    useRef<HTMLCanvasElement | null>(null),
-    useRef<HTMLCanvasElement | null>(null),
-    useRef<HTMLCanvasElement | null>(null)
-  ];
+
 
   // Fetch initial telemetry & GIS layers
   useEffect(() => {
@@ -470,81 +465,7 @@ export const Dashboard: React.FC = () => {
     );
   };
 
-  // Canvas CCTV feeds simulation animation
-  useEffect(() => {
-    let animId: number;
-    let t = 0;
 
-    const renderFeeds = () => {
-      t += 0.04;
-      canvasRefs.forEach((ref, index) => {
-        const canvas = ref.current;
-        if (!canvas) return;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) return;
-
-        const w = canvas.width;
-        const h = canvas.height;
-
-        // Street/scene background tone
-        ctx.fillStyle = index % 2 === 0 ? '#334155' : '#2b394d';
-        ctx.fillRect(0, 0, w, h);
-
-        // Road / pedestrian walkways
-        ctx.fillStyle = '#1e293b';
-        ctx.fillRect(0, h * 0.45, w, h * 0.55);
-
-        // Center line
-        ctx.strokeStyle = '#475569';
-        ctx.setLineDash([8, 8]);
-        ctx.beginPath();
-        ctx.moveTo(0, h * 0.72);
-        ctx.lineTo(w, h * 0.72);
-        ctx.stroke();
-        ctx.setLineDash([]);
-
-        // Animated people/vehicles with bounding boxes
-        const xPos1 = (Math.sin(t + index) * 0.35 + 0.45) * w;
-        const yPos1 = h * 0.58;
-
-        // Bounding box 1 (Pedestrian)
-        ctx.strokeStyle = '#06b6d4';
-        ctx.lineWidth = 1.5;
-        ctx.strokeRect(xPos1 - 10, yPos1 - 22, 20, 36);
-        ctx.fillStyle = 'rgba(6, 182, 212, 0.2)';
-        ctx.fillRect(xPos1 - 10, yPos1 - 22, 20, 36);
-        ctx.fillStyle = '#06b6d4';
-        ctx.font = '8px monospace';
-        ctx.fillText('Person 98%', xPos1 - 10, yPos1 - 24);
-
-        // Bounding box 2 (Vehicle)
-        const xPos2 = ((t * 40 + index * 60) % (w + 60)) - 30;
-        const yPos2 = h * 0.7;
-        ctx.strokeStyle = '#10b981';
-        ctx.lineWidth = 1.5;
-        ctx.strokeRect(xPos2 - 20, yPos2 - 12, 40, 24);
-        ctx.fillStyle = 'rgba(16, 185, 129, 0.2)';
-        ctx.fillRect(xPos2 - 20, yPos2 - 12, 40, 24);
-        ctx.fillStyle = '#10b981';
-        ctx.font = '8px monospace';
-        ctx.fillText('Vehicle 96%', xPos2 - 20, yPos2 - 14);
-
-        // Timestamp overlay
-        const now = new Date();
-        const timeStr = now.toLocaleTimeString('en-GB', { hour12: false });
-        ctx.fillStyle = 'rgba(15, 23, 42, 0.75)';
-        ctx.fillRect(6, h - 20, 68, 14);
-        ctx.fillStyle = '#f8fafc';
-        ctx.font = '9px monospace';
-        ctx.fillText(timeStr, 10, h - 9);
-      });
-
-      animId = requestAnimationFrame(renderFeeds);
-    };
-
-    renderFeeds();
-    return () => cancelAnimationFrame(animId);
-  }, []);
 
   return (
     <div className="space-y-4 max-w-[1720px] mx-auto pb-6">
@@ -915,56 +836,8 @@ export const Dashboard: React.FC = () => {
             </button>
           </div>
 
-          {/* 2x2 Video Tile Grid */}
-          <div className="grid grid-cols-2 gap-2.5 flex-1">
-            {/* Tile 1: CAM-17-001 */}
-            <div className="relative rounded-lg overflow-hidden border border-[#CBDCEE] bg-slate-900 flex flex-col group">
-              <div className="absolute top-1.5 left-2 right-2 flex items-center justify-between z-10 text-[10px]">
-                <span className="font-bold text-white drop-shadow">CAM-17-001 <span className="font-normal text-slate-300">Sector 17 - Plaza</span></span>
-                <span className="bg-[#16A36A] text-white px-1.5 py-0.2 rounded font-semibold text-[9px]">Live</span>
-              </div>
-              <canvas ref={canvasRefs[0]} width={220} height={135} className="w-full h-full object-cover" />
-              <button className="absolute bottom-1.5 right-1.5 p-1 bg-black/40 hover:bg-black/70 text-white rounded transition">
-                <Maximize2 className="w-3 h-3" />
-              </button>
-            </div>
-
-            {/* Tile 2: CAM-22-003 */}
-            <div className="relative rounded-lg overflow-hidden border border-[#CBDCEE] bg-slate-900 flex flex-col group">
-              <div className="absolute top-1.5 left-2 right-2 flex items-center justify-between z-10 text-[10px]">
-                <span className="font-bold text-white drop-shadow">CAM-22-003 <span className="font-normal text-slate-300">Sector 22 - Market</span></span>
-                <span className="bg-[#16A36A] text-white px-1.5 py-0.2 rounded font-semibold text-[9px]">Live</span>
-              </div>
-              <canvas ref={canvasRefs[1]} width={220} height={135} className="w-full h-full object-cover" />
-              <button className="absolute bottom-1.5 right-1.5 p-1 bg-black/40 hover:bg-black/70 text-white rounded transition">
-                <Maximize2 className="w-3 h-3" />
-              </button>
-            </div>
-
-            {/* Tile 3: CAM-35-002 */}
-            <div className="relative rounded-lg overflow-hidden border border-[#CBDCEE] bg-slate-900 flex flex-col group">
-              <div className="absolute top-1.5 left-2 right-2 flex items-center justify-between z-10 text-[10px]">
-                <span className="font-bold text-white drop-shadow">CAM-35-002 <span className="font-normal text-slate-300">Sector 35 - Roundabout</span></span>
-                <span className="bg-[#16A36A] text-white px-1.5 py-0.2 rounded font-semibold text-[9px]">Live</span>
-              </div>
-              <canvas ref={canvasRefs[2]} width={220} height={135} className="w-full h-full object-cover" />
-              <button className="absolute bottom-1.5 right-1.5 p-1 bg-black/40 hover:bg-black/70 text-white rounded transition">
-                <Maximize2 className="w-3 h-3" />
-              </button>
-            </div>
-
-            {/* Tile 4: CAM-43-001 */}
-            <div className="relative rounded-lg overflow-hidden border border-[#CBDCEE] bg-slate-900 flex flex-col group">
-              <div className="absolute top-1.5 left-2 right-2 flex items-center justify-between z-10 text-[10px]">
-                <span className="font-bold text-white drop-shadow">CAM-43-001 <span className="font-normal text-slate-300">Sector 43 - Residential</span></span>
-                <span className="bg-[#16A36A] text-white px-1.5 py-0.2 rounded font-semibold text-[9px]">Live</span>
-              </div>
-              <canvas ref={canvasRefs[3]} width={220} height={135} className="w-full h-full object-cover" />
-              <button className="absolute bottom-1.5 right-1.5 p-1 bg-black/40 hover:bg-black/70 text-white rounded transition">
-                <Maximize2 className="w-3 h-3" />
-              </button>
-            </div>
-          </div>
+          {/* 2x2 Video Tile Grid with Dynamic Visual AI Detection & Playback */}
+          <DashboardLiveCameraGrid />
         </div>
 
         {/* Col 3: Recent Alerts (3 cols) */}
