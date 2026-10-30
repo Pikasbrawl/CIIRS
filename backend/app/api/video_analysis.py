@@ -422,6 +422,29 @@ DEMO_VIDEOS_METADATA = [
         "ai_status": "ANALYZED",
         "detected_objects": ["Entry/Exit Ingress", "Pedestrian Flow", "Doorway Corridor"],
         "confidence": 0.941
+    },
+    {
+        "id": "DEMO-007",
+        "video_id": "DEMO-007",
+        "title": "Road Traffic & Collision Detection — Sector 26 Corridor",
+        "camera_id": "CAM-DEMO-007",
+        "camera_name": "Sector 26 Transport Hub Camera",
+        "location": "Madhya Marg Junction, Sector 26, Chandigarh",
+        "video_url": "/static/ucf_crime_road_accidents_demo.mp4",
+        "duration_seconds": 50.0,
+        "duration_str": "00:50",
+        "recording_date": "2026-10-30 18:15:00",
+        "file_size_bytes": 539648,
+        "file_size_str": "527 KB",
+        "format": "MP4 (H.264/AAC)",
+        "resolution": "320x240",
+        "fps": 30.0,
+        "category": "Road Traffic",
+        "source_type": "INTERNET CCTV (UCF-CRIME)",
+        "status": "READY",
+        "ai_status": "ANALYZED",
+        "detected_objects": ["Vehicles (YOLO11 Tracked)", "Traffic Flow", "Kinetic Velocity Analysis"],
+        "confidence": 0.968
     }
 ]
 
