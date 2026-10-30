@@ -38,7 +38,7 @@ export const CAMERA_FEEDS: CameraFeedConfig[] = [
     sector: 'Sector 17 Commercial Promenade',
     sceneType: 'Pedestrian Detection & Movement',
     videoUrl: '/static/cctv_cam_17_001.mp4',
-    hudText: 'CAM-17-001 | PERSONS DETECTED: 08 | AI TRACKING ACTIVE',
+    hudText: 'CAM-17-001 | PERSONS DETECTED: 08 | DEMO AI VISUALISATION',
     fps: 25,
     resolution: '640x360',
     lat: 30.7398,
@@ -144,7 +144,7 @@ export const CAMERA_FEEDS: CameraFeedConfig[] = [
     sector: 'Sector 22 Market Avenue',
     sceneType: 'Road Traffic & Vehicle Detection',
     videoUrl: '/static/cctv_cam_22_003.mp4',
-    hudText: 'CAM-22-003 | VEHICLES DETECTED: 12 | AI TRACKING ACTIVE',
+    hudText: 'CAM-22-003 | VEHICLES DETECTED: 12 | DEMO AI VISUALISATION',
     fps: 25,
     resolution: '640x360',
     lat: 30.7290,
@@ -294,7 +294,7 @@ export const CAMERA_FEEDS: CameraFeedConfig[] = [
     sector: 'Sector 35 Rotary & Public Concourse',
     sceneType: 'Public Space Activity & Pedestrian Crossings',
     videoUrl: '/static/cctv_cam_35_002.mp4',
-    hudText: 'CAM-35-002 | OBJECTS DETECTED: 06 | SCENE ANALYSIS ACTIVE',
+    hudText: 'CAM-35-002 | OBJECTS DETECTED: 06 | DEMO AI VISUALISATION',
     fps: 25,
     resolution: '640x360',
     lat: 30.7210,
@@ -383,7 +383,7 @@ export const CAMERA_FEEDS: CameraFeedConfig[] = [
     sector: 'Sector 43 ISBT Terminal Parking',
     sceneType: 'Parking Facility & Perimeter Monitoring',
     videoUrl: '/static/cctv_cam_43_001.mp4',
-    hudText: 'CAM-43-001 | VEHICLES DETECTED: 09 | AI TRACKING ACTIVE',
+    hudText: 'CAM-43-001 | VEHICLES DETECTED: 09 | DEMO AI VISUALISATION',
     fps: 25,
     resolution: '640x360',
     lat: 30.7180,
@@ -541,12 +541,12 @@ export const CameraFeedCard: React.FC<{
           <span className="font-medium text-slate-300 truncate text-[9px] drop-shadow">{feed.name}</span>
         </div>
         <div className="flex items-center space-x-1 shrink-0">
-          <span className="flex items-center space-x-1 bg-[#16A36A]/90 text-white px-1.5 py-0.2 rounded font-semibold text-[8px] tracking-wider uppercase backdrop-blur-sm border border-emerald-500/30">
-            <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse"></span>
-            <span>Live</span>
+          <span className="flex items-center space-x-1 bg-[#2463A6]/90 text-white px-1.5 py-0.2 rounded font-semibold text-[8px] tracking-wider uppercase backdrop-blur-sm border border-cyan-400/40">
+            <span className="w-1.5 h-1.5 rounded-full bg-cyan-300"></span>
+            <span>DEMO FEED</span>
           </span>
-          <span className="bg-slate-800/80 text-slate-300 px-1 py-0.2 rounded text-[8px] font-mono border border-slate-700">
-            25 FPS
+          <span className="bg-slate-800/90 text-slate-300 px-1 py-0.2 rounded text-[8px] font-mono border border-slate-700">
+            CONNECTED
           </span>
         </div>
       </div>
@@ -798,14 +798,14 @@ export const ExpandedVideoModal: React.FC<{
             <div className="min-w-0">
               <div className="flex items-center space-x-2">
                 <h3 className="font-bold text-base tracking-wide">{feed.id} • {feed.name}</h3>
-                <span className="bg-[#16A36A] text-white text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
-                  Live 25 FPS
+                <span className="bg-[#2463A6] text-white text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider border border-cyan-400/30">
+                  DEMO FOOTAGE • 25 FPS
                 </span>
-                <span className="bg-[#2463A6]/40 text-cyan-200 text-[10px] font-mono px-2 py-0.5 rounded border border-cyan-400/30">
-                  {feed.resolution}
+                <span className="bg-slate-800 text-cyan-200 text-[10px] font-mono px-2 py-0.5 rounded border border-cyan-400/30">
+                  FEED: {feed.resolution} H.264
                 </span>
               </div>
-              <p className="text-xs text-slate-300 truncate mt-0.5">{feed.sector} • GPS: {feed.lat.toFixed(4)}°N, {feed.lon.toFixed(4)}°E</p>
+              <p className="text-xs text-slate-300 truncate mt-0.5">{feed.sector} • GPS: {feed.lat.toFixed(4)}°N, {feed.lon.toFixed(4)}°E (RECORDED DEMONSTRATION)</p>
             </div>
           </div>
           
@@ -820,7 +820,7 @@ export const ExpandedVideoModal: React.FC<{
               }`}
             >
               {showOverlays ? <Eye className="w-3.5 h-3.5 text-cyan-300" /> : <EyeOff className="w-3.5 h-3.5 text-slate-400" />}
-              <span>{showOverlays ? 'AI Overlays ON' : 'Raw Video Only'}</span>
+              <span>{showOverlays ? 'DEMO AI OVERLAY: ON' : 'RAW VIDEO ONLY'}</span>
             </button>
 
             {/* Close button */}
@@ -1022,7 +1022,7 @@ export const ExpandedVideoModal: React.FC<{
             <div className="flex items-center space-x-2">
               <Crosshair className="w-4 h-4 text-[#2463A6]" />
               <h4 className="text-xs font-bold text-[#172F50] uppercase tracking-wider">
-                Active Computer-Vision Detections & Tracking Ledger
+                Active Computer-Vision Detections (Demo Annotations)
               </h4>
             </div>
             <span className="text-[11px] font-semibold text-[#526477]">

@@ -28,11 +28,11 @@ def add_cctv_effects(frame, cam_name, sector_name, t, frame_idx):
 
     # 3. Clean CCTV OSD banner (Top)
     cv2.rectangle(frame, (0, 0), (W, 24), (10, 15, 25), -1)
-    # Online blinking dot
-    dot_color = (0, 220, 60) if (frame_idx % 20 < 14) else (0, 120, 30)
+    # Demo indicator dot (cyan/blue)
+    dot_color = (220, 160, 40) if (frame_idx % 20 < 14) else (140, 90, 20)
     cv2.circle(frame, (14, 12), 4, dot_color, -1)
-    cv2.putText(frame, "LIVE", (23, 16), cv2.FONT_HERSHEY_SIMPLEX, 0.36, (255, 255, 255), 1, cv2.LINE_AA)
-    cv2.putText(frame, f"{cam_name} • {sector_name}", (60, 16), cv2.FONT_HERSHEY_SIMPLEX, 0.40, (220, 235, 250), 1, cv2.LINE_AA)
+    cv2.putText(frame, "DEMO", (23, 16), cv2.FONT_HERSHEY_SIMPLEX, 0.36, (200, 230, 255), 1, cv2.LINE_AA)
+    cv2.putText(frame, f"{cam_name} • {sector_name}", (68, 16), cv2.FONT_HERSHEY_SIMPLEX, 0.38, (220, 235, 250), 1, cv2.LINE_AA)
 
     # Time OSD (IST)
     sec_int = int(t)
@@ -42,11 +42,11 @@ def add_cctv_effects(frame, cam_name, sector_name, t, frame_idx):
 
     # 4. Clean CCTV Telemetry (Bottom)
     cv2.rectangle(frame, (0, H - 20), (W, H), (10, 15, 25), -1)
-    cv2.putText(frame, f"CHANDIGARH SURVEILLANCE GRID | 25 FPS | 1080p ENCODE", (10, H - 6), cv2.FONT_HERSHEY_SIMPLEX, 0.32, (150, 175, 200), 1, cv2.LINE_AA)
+    cv2.putText(frame, f"CHANDIGARH DEMO SURVEILLANCE GRID | 25 FPS | H.264", (10, H - 6), cv2.FONT_HERSHEY_SIMPLEX, 0.32, (150, 175, 200), 1, cv2.LINE_AA)
 
-    # Demo footage watermark (mandatory requirement)
-    cv2.rectangle(frame, (W - 175, H - 18), (W - 6, H - 2), (20, 45, 95), -1)
-    cv2.putText(frame, "DEMO FOOTAGE — NOT LIVE STREAM", (W - 171, H - 6), cv2.FONT_HERSHEY_SIMPLEX, 0.28, (230, 240, 255), 1, cv2.LINE_AA)
+    # Demo footage watermark (strictly: NOT A LIVE CCTV STREAM)
+    cv2.rectangle(frame, (W - 195, H - 18), (W - 6, H - 2), (20, 45, 95), -1)
+    cv2.putText(frame, "DEMO FOOTAGE — NOT LIVE STREAM", (W - 190, H - 6), cv2.FONT_HERSHEY_SIMPLEX, 0.28, (230, 240, 255), 1, cv2.LINE_AA)
 
     return frame
 
