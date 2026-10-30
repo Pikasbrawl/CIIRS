@@ -242,7 +242,7 @@ VEHICLE_DATABASE_METADATA: Dict[str, Dict[str, Any]] = {
         "speed_kmh": 28.0,
         "is_watchlist": False,
         "watchlist_reason": None,
-        "image_url": "/static/alert_watchlist_anpr.jpg",
+        "image_url": "/static/anpr_ch01gh3456_i20.jpg",
         "timestamp": "30 Oct 2026, 10:30:12 IST",
         "is_stolen": False,
         "stolen_details": {
@@ -281,7 +281,7 @@ VEHICLE_DATABASE_METADATA: Dict[str, Dict[str, Any]] = {
         "speed_kmh": 44.0,
         "is_watchlist": True,
         "watchlist_reason": "⚠️ Commercial Vehicle Impound Notice: Expired Interstate Route Permit",
-        "image_url": "/static/alert_vehicle_accident.jpg",
+        "image_url": "/static/anpr_dl8ca1299_innova.jpg",
         "timestamp": "30 Oct 2026, 10:25:40 IST",
         "is_stolen": False,
         "stolen_details": {
