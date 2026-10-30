@@ -85,6 +85,32 @@ export const api = {
     return res.json();
   },
 
+  getVideoLibrary: async () => {
+    const res = await fetch(`${BASE_URL}/analysis/videos`);
+    return res.json();
+  },
+
+  processVideoRecording: async (videoId: string) => {
+    const res = await fetch(`${BASE_URL}/analysis/process-video/${encodeURIComponent(videoId)}`, {
+      method: 'POST'
+    });
+    return res.json();
+  },
+
+  getVideoHistory: async () => {
+    const res = await fetch(`${BASE_URL}/analysis/history`);
+    return res.json();
+  },
+
+  logVideoHistory: async (data: any) => {
+    const res = await fetch(`${BASE_URL}/analysis/history`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    return res.json();
+  },
+
   getLatestPredictions: async (): Promise<Prediction[]> => {
     const res = await fetch(`${BASE_URL}/analysis/latest-predictions`);
     return res.json();

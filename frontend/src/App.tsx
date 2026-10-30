@@ -13,6 +13,7 @@ import { IncidentReconstruction } from './pages/IncidentReconstruction';
 
 import { LiveLocationGIS } from './pages/LiveLocationGIS';
 import { LiveCCTVMonitoring } from './pages/LiveCCTVMonitoring';
+import { VideoManagement } from './pages/VideoManagement';
 import { PredictiveAIEngine } from './pages/PredictiveAIEngine';
 import { EmergencyResponseCentre } from './pages/EmergencyResponseCentre';
 import { InvestigationWorkspace } from './pages/InvestigationWorkspace';
@@ -38,6 +39,7 @@ export const App: React.FC = () => {
       case 'camera-management':
         return <CameraManagement />;
       case 'video-management':
+        return <VideoManagement />;
       case 'live-cctv':
         return <LiveCCTVMonitoring />;
       case 'incident-reconstruction':
