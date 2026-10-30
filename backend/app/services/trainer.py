@@ -16,11 +16,23 @@ class ModelTrainerService:
         self.device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
         self.active_runs: Dict[int, Dict[str, Any]] = {}
 
-    def generate_training_data(self, num_samples: int = 450, seq_len: int = 20) -> Tuple[torch.Tensor, torch.Tensor]:
+    def generate_training_data(self, num_samples: int = 450, seq_len: int = 20, dataset_name: str = "") -> Tuple[torch.Tensor, torch.Tensor]:
         """
-        Generate feature tensors representing physical scenario signatures
-        based on calibrated kinematic heuristics matching ai_engine.
+        Generate feature tensors representing physical scenario signatures.
+        If UCF-Crime annotations exist or dataset_name requests it, loads and extracts
+        trajectories from the real UCF-Crime dataset.
         """
+        ucf_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "datasets", "ucf_crime")
+        ucf_train_pkl = os.path.join(ucf_dir, "Train_annotation.pkl")
+
+        if os.path.exists(ucf_train_pkl):
+            try:
+                from scripts.train_yolo11_ucf_model import load_ucf_crime_training_dataset
+                X, y, _ = load_ucf_crime_training_dataset(seq_len=seq_len)
+                return X, y
+            except Exception as e:
+                pass
+
         from app.services.ai_engine import ai_engine
         num_classes = len(SCENARIO_CLASSES)
         X = []
@@ -50,7 +62,8 @@ class ModelTrainerService:
         learning_rate = config.get("learning_rate", 0.001)
         
         # 1. Generate real dataset splits
-        X, y = self.generate_training_data(num_samples=450, seq_len=20)
+        dataset_name = config.get("dataset_name", "")
+        X, y = self.generate_training_data(num_samples=450, seq_len=20, dataset_name=dataset_name)
         
         dataset_size = len(X)
         indices = torch.randperm(dataset_size)
