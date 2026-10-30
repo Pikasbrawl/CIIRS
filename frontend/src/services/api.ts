@@ -1,7 +1,7 @@
 import { 
   Camera, Incident, ResponseRequest, ResponseUnit, InvestigationCase,
   CaseEvidence, CaseNote, TrainingRun, Dataset, ModelVersion, Prediction,
-  VehicleDetection, PublicIncidentReport, AlertItem
+  VehicleDetection, PublicIncidentReport, AlertItem, CitizenEvidenceAttachment
 } from '../types';
 
 const BASE_URL = '/api';
@@ -391,6 +391,53 @@ export const api = {
       body: JSON.stringify(reportData)
     });
     return res.json();
+  },
+
+  uploadCitizenEvidence: async (
+    file: File, 
+    category: string = 'CITIZEN_EVIDENCE', 
+    description: string = '',
+    onProgress?: (percent: number) => void
+  ): Promise<CitizenEvidenceAttachment> => {
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', `${BASE_URL}/reports/upload-evidence`);
+      
+      if (onProgress && xhr.upload) {
+        xhr.upload.onprogress = (evt) => {
+          if (evt.lengthComputable) {
+            const percent = Math.round((evt.loaded / evt.total) * 100);
+            onProgress(percent);
+          }
+        };
+      }
+      
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          try {
+            resolve(JSON.parse(xhr.responseText));
+          } catch (e) {
+            reject(new Error('Invalid response from server'));
+          }
+        } else {
+          try {
+            const err = JSON.parse(xhr.responseText);
+            reject(new Error(err.detail || 'Upload failed'));
+          } catch (e) {
+            reject(new Error(`Upload failed with status ${xhr.status}`));
+          }
+        }
+      };
+      
+      xhr.onerror = () => reject(new Error('Network error during upload'));
+      
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('category', category);
+      formData.append('description', description);
+      
+      xhr.send(formData);
+    });
   },
 
   getPublicReports: async (status?: string): Promise<PublicIncidentReport[]> => {

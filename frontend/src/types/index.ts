@@ -44,6 +44,19 @@ export interface VehicleDetection {
   image_url?: string;
 }
 
+export interface CitizenEvidenceAttachment {
+  id: string;
+  filename: string;
+  original_name?: string;
+  file_url: string;
+  file_type: 'PHOTO' | 'VIDEO';
+  mime_type?: string;
+  file_size: number;
+  category?: string;
+  description?: string;
+  duration?: number;
+}
+
 export interface PublicIncidentReport {
   id: number;
   report_code: string;
@@ -56,6 +69,7 @@ export interface PublicIncidentReport {
   reporter_phone?: string;
   reporter_contact?: string;
   attachment_url?: string;
+  attachments?: CitizenEvidenceAttachment[];
   status: 'SUBMITTED' | 'UNDER_REVIEW' | 'VERIFIED' | 'DISMISSED' | 'PENDING';
   review_notes?: string;
   status_history?: Array<{

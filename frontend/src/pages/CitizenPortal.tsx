@@ -1,13 +1,36 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Megaphone, Search, ShieldCheck, MapPin, Upload, 
   FileText, CheckCircle2, Clock, AlertTriangle, Phone,
   Camera, ArrowRight, UserCheck, Shield, ExternalLink,
-  Info, Sparkles, Navigation, Send, RefreshCw, Eye
+  Info, Sparkles, Navigation, Send, RefreshCw, Eye,
+  Image as ImageIcon, Video, Trash2, X, RotateCcw, Play,
+  Maximize2, AlertCircle, Film
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { api } from '../services/api';
-import { PublicIncidentReport } from '../types';
+import { PublicIncidentReport, CitizenEvidenceAttachment } from '../types';
+
+interface PendingAttachment {
+  id: string;
+  file?: File;
+  previewUrl: string;
+  name: string;
+  size: number;
+  type: 'PHOTO' | 'VIDEO';
+  mimeType: string;
+  duration?: number;
+  description: string;
+  uploadStatus?: 'PENDING' | 'UPLOADING' | 'SUCCESS' | 'ERROR';
+  uploadProgress?: number;
+  serverUrl?: string;
+  error?: string;
+}
+
+const MAX_PHOTOS = 10;
+const MAX_VIDEOS = 3;
+const MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024; // 50 MB
+const MAX_TOTAL_SIZE_BYTES = 250 * 1024 * 1024; // 250 MB
 
 export const CitizenPortal: React.FC = () => {
   const { activeTab, setActiveTab, currentUser } = useApp();
@@ -36,9 +59,45 @@ export const CitizenPortal: React.FC = () => {
   const [reporterName, setReporterName] = useState(currentUser.full_name || 'Pooja Sharma');
   const [reporterContact, setReporterContact] = useState('+91 98140 55122');
   const [isAnonymous, setIsAnonymous] = useState(false);
-  const [attachmentUrl, setAttachmentUrl] = useState<string>('/static/sample_cctv_frame1.jpg');
+  const [attachmentUrl, setAttachmentUrl] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submittedCode, setSubmittedCode] = useState<string | null>(null);
+
+  // Evidence Attachment System State
+  const [pendingAttachments, setPendingAttachments] = useState<PendingAttachment[]>([]);
+  const [uploadOverallProgress, setUploadOverallProgress] = useState<string | null>(null);
+
+  // Live Camera Modal State
+  const [isCameraOpen, setIsCameraOpen] = useState(false);
+  const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
+  const [cameraFacing, setCameraFacing] = useState<'environment' | 'user'>('environment');
+  const [cameraError, setCameraError] = useState<string | null>(null);
+  const [capturedPhotoUrl, setCapturedPhotoUrl] = useState<string | null>(null);
+  const [capturedBlob, setCapturedBlob] = useState<Blob | null>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+
+  // Hidden File Input References
+  const photosInputRef = useRef<HTMLInputElement | null>(null);
+  const videosInputRef = useRef<HTMLInputElement | null>(null);
+  const fallbackCameraInputRef = useRef<HTMLInputElement | null>(null);
+
+  // Lightbox Modal Preview State
+  const [previewModalItem, setPreviewModalItem] = useState<{
+    name: string;
+    url: string;
+    type: 'PHOTO' | 'VIDEO';
+    size?: number;
+    description?: string;
+  } | null>(null);
+
+  // Camera stream cleanup on unmount or stream change
+  useEffect(() => {
+    return () => {
+      if (cameraStream) {
+        cameraStream.getTracks().forEach(t => t.stop());
+      }
+    };
+  }, [cameraStream]);
 
   // Tracking State
   const [trackCodeInput, setTrackCodeInput] = useState('CIT-2026-7841');
@@ -100,6 +159,314 @@ export const CitizenPortal: React.FC = () => {
     }
   };
 
+  // Camera Handlers
+  const startCamera = async (facing: 'environment' | 'user' = 'environment') => {
+    setCameraError(null);
+    setCapturedPhotoUrl(null);
+    setCapturedBlob(null);
+    setIsCameraOpen(true);
+
+    if (cameraStream) {
+      cameraStream.getTracks().forEach(track => track.stop());
+      setCameraStream(null);
+    }
+
+    try {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error('Camera MediaDevices API is not supported by your browser.');
+      }
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: facing,
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
+        },
+        audio: false
+      });
+      setCameraStream(stream);
+      setCameraFacing(facing);
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        videoRef.current.play().catch(e => console.log('Camera video play error:', e));
+      }
+    } catch (err: any) {
+      console.error('Camera access error:', err);
+      if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+        setCameraError('Camera access was refused. Please allow camera permissions in your browser or use the fallback photo picker below.');
+      } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+        setCameraError('No camera hardware found on this device. Please select photos from your device gallery.');
+      } else {
+        setCameraError(`Camera error: ${err.message || 'Unable to access camera'}. You can use the device photo selector.`);
+      }
+    }
+  };
+
+  const stopCamera = () => {
+    if (cameraStream) {
+      cameraStream.getTracks().forEach(track => track.stop());
+      setCameraStream(null);
+    }
+    setIsCameraOpen(false);
+    setCapturedPhotoUrl(null);
+    setCapturedBlob(null);
+    setCameraError(null);
+  };
+
+  const toggleCameraFacing = () => {
+    const nextFacing = cameraFacing === 'environment' ? 'user' : 'environment';
+    startCamera(nextFacing);
+  };
+
+  const captureSnapshot = () => {
+    if (!videoRef.current) return;
+    const video = videoRef.current;
+    const canvas = document.createElement('canvas');
+    canvas.width = video.videoWidth || 1280;
+    canvas.height = video.videoHeight || 720;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    canvas.toBlob((blob) => {
+      if (blob) {
+        const url = URL.createObjectURL(blob);
+        setCapturedPhotoUrl(url);
+        setCapturedBlob(blob);
+      }
+    }, 'image/jpeg', 0.92);
+  };
+
+  const handleAcceptCapturedPhoto = () => {
+    if (!capturedBlob || !capturedPhotoUrl) return;
+
+    const currentPhotos = pendingAttachments.filter(a => a.type === 'PHOTO').length;
+    if (currentPhotos >= MAX_PHOTOS) {
+      alert(`Maximum ${MAX_PHOTOS} photographs allowed per report.`);
+      stopCamera();
+      return;
+    }
+
+    const currentTotal = pendingAttachments.reduce((sum, a) => sum + a.size, 0);
+    if (currentTotal + capturedBlob.size > MAX_TOTAL_SIZE_BYTES) {
+      alert('Total evidence size would exceed the 250 MB report limit.');
+      stopCamera();
+      return;
+    }
+
+    const timestamp = new Date().toISOString().replace(/[:.-]/g, '').slice(0, 15);
+    const fileName = `camera_photo_${timestamp}.jpg`;
+    const file = new File([capturedBlob], fileName, { type: 'image/jpeg' });
+
+    const newAttachment: PendingAttachment = {
+      id: `photo_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+      file,
+      previewUrl: capturedPhotoUrl,
+      name: fileName,
+      size: capturedBlob.size,
+      type: 'PHOTO',
+      mimeType: 'image/jpeg',
+      description: '',
+      uploadStatus: 'PENDING',
+      uploadProgress: 0
+    };
+
+    setPendingAttachments(prev => [...prev, newAttachment]);
+    stopCamera();
+  };
+
+  const handleFallbackCameraCapture = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    const file = files[0];
+
+    const currentPhotos = pendingAttachments.filter(a => a.type === 'PHOTO').length;
+    if (currentPhotos >= MAX_PHOTOS) {
+      alert(`Maximum ${MAX_PHOTOS} photographs allowed.`);
+      return;
+    }
+
+    if (file.size > MAX_FILE_SIZE_BYTES) {
+      alert(`Photo exceeds the 50 MB limit (${(file.size / (1024 * 1024)).toFixed(1)} MB).`);
+      return;
+    }
+
+    const currentTotal = pendingAttachments.reduce((sum, a) => sum + a.size, 0);
+    if (currentTotal + file.size > MAX_TOTAL_SIZE_BYTES) {
+      alert('Total evidence size would exceed the 250 MB report limit.');
+      return;
+    }
+
+    const newAttachment: PendingAttachment = {
+      id: `photo_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+      file,
+      previewUrl: URL.createObjectURL(file),
+      name: file.name || `camera_photo_${Date.now()}.jpg`,
+      size: file.size,
+      type: 'PHOTO',
+      mimeType: file.type || 'image/jpeg',
+      description: '',
+      uploadStatus: 'PENDING',
+      uploadProgress: 0
+    };
+
+    setPendingAttachments(prev => [...prev, newAttachment]);
+    e.target.value = '';
+    stopCamera();
+  };
+
+  // Gallery Photos Handlers
+  const handlePhotosSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    const validFiles: PendingAttachment[] = [];
+    const currentPhotos = pendingAttachments.filter(a => a.type === 'PHOTO').length;
+    let runningTotalSize = pendingAttachments.reduce((sum, a) => sum + a.size, 0);
+    let photoCount = currentPhotos;
+
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      const ext = file.name.split('.').pop()?.toLowerCase();
+      const isAllowedExt = ext && ['jpg', 'jpeg', 'png', 'webp'].includes(ext);
+      if (!allowedTypes.includes(file.type.toLowerCase()) && !isAllowedExt) {
+        alert(`"${file.name}" is not a supported image format. Supported formats: JPG, JPEG, PNG, WEBP.`);
+        continue;
+      }
+
+      if (file.size > MAX_FILE_SIZE_BYTES) {
+        alert(`"${file.name}" exceeds 50 MB limit (${(file.size / (1024 * 1024)).toFixed(1)} MB).`);
+        continue;
+      }
+
+      if (photoCount >= MAX_PHOTOS) {
+        alert(`Maximum ${MAX_PHOTOS} photographs reached. Remaining files were not added.`);
+        break;
+      }
+
+      if (runningTotalSize + file.size > MAX_TOTAL_SIZE_BYTES) {
+        alert(`Adding "${file.name}" would exceed the 250 MB total report evidence limit.`);
+        break;
+      }
+
+      photoCount++;
+      runningTotalSize += file.size;
+
+      validFiles.push({
+        id: `photo_${Date.now()}_${i}_${Math.random().toString(36).substring(2, 7)}`,
+        file,
+        previewUrl: URL.createObjectURL(file),
+        name: file.name,
+        size: file.size,
+        type: 'PHOTO',
+        mimeType: file.type || 'image/jpeg',
+        description: '',
+        uploadStatus: 'PENDING',
+        uploadProgress: 0
+      });
+    }
+
+    if (validFiles.length > 0) {
+      setPendingAttachments(prev => [...prev, ...validFiles]);
+    }
+    e.target.value = '';
+  };
+
+  // Video Handlers
+  const handleVideosSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    const validFiles: PendingAttachment[] = [];
+    const currentVideos = pendingAttachments.filter(a => a.type === 'VIDEO').length;
+    let runningTotalSize = pendingAttachments.reduce((sum, a) => sum + a.size, 0);
+    let videoCount = currentVideos;
+
+    const allowedTypes = ['video/mp4', 'video/webm', 'video/quicktime'];
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      const ext = file.name.split('.').pop()?.toLowerCase();
+      const isAllowedExt = ext && ['mp4', 'webm', 'mov'].includes(ext);
+      if (!allowedTypes.includes(file.type.toLowerCase()) && !isAllowedExt) {
+        alert(`"${file.name}" is not a supported video format. Supported formats: MP4, WEBM, MOV.`);
+        continue;
+      }
+
+      if (file.size > MAX_FILE_SIZE_BYTES) {
+        alert(`"${file.name}" exceeds 50 MB limit (${(file.size / (1024 * 1024)).toFixed(1)} MB).`);
+        continue;
+      }
+
+      if (videoCount >= MAX_VIDEOS) {
+        alert(`Maximum ${MAX_VIDEOS} video clips reached. Remaining clips were not added.`);
+        break;
+      }
+
+      if (runningTotalSize + file.size > MAX_TOTAL_SIZE_BYTES) {
+        alert(`Adding "${file.name}" would exceed the 250 MB total report evidence limit.`);
+        break;
+      }
+
+      videoCount++;
+      runningTotalSize += file.size;
+
+      const previewUrl = URL.createObjectURL(file);
+
+      validFiles.push({
+        id: `video_${Date.now()}_${i}_${Math.random().toString(36).substring(2, 7)}`,
+        file,
+        previewUrl,
+        name: file.name,
+        size: file.size,
+        type: 'VIDEO',
+        mimeType: file.type || 'video/mp4',
+        description: '',
+        uploadStatus: 'PENDING',
+        uploadProgress: 0
+      });
+    }
+
+    if (validFiles.length > 0) {
+      setPendingAttachments(prev => [...prev, ...validFiles]);
+    }
+    e.target.value = '';
+  };
+
+  // Deletion & Description Handlers
+  const handleDeleteAttachment = (id: string) => {
+    setPendingAttachments(prev => {
+      const item = prev.find(a => a.id === id);
+      if (item && item.previewUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(item.previewUrl);
+      }
+      return prev.filter(a => a.id !== id);
+    });
+  };
+
+  const handleClearAllAttachments = () => {
+    if (pendingAttachments.length === 0) return;
+    if (window.confirm(`Are you sure you want to remove all ${pendingAttachments.length} attached evidence files?`)) {
+      pendingAttachments.forEach(a => {
+        if (a.previewUrl.startsWith('blob:')) {
+          URL.revokeObjectURL(a.previewUrl);
+        }
+      });
+      setPendingAttachments([]);
+    }
+  };
+
+  const handleUpdateDescription = (id: string, text: string) => {
+    setPendingAttachments(prev => prev.map(a => a.id === id ? { ...a, description: text } : a));
+  };
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!description.trim()) {
@@ -108,7 +475,54 @@ export const CitizenPortal: React.FC = () => {
     }
 
     setIsSubmitting(true);
+    setUploadOverallProgress(pendingAttachments.length > 0 ? 'Preparing evidence files...' : 'Submitting report...');
+
     try {
+      const uploadedAttachments: CitizenEvidenceAttachment[] = [];
+
+      // Sequentially upload each attachment with real progress reporting
+      for (let i = 0; i < pendingAttachments.length; i++) {
+        const item = pendingAttachments[i];
+        if (item.file) {
+          setUploadOverallProgress(`Uploading evidence ${i + 1} of ${pendingAttachments.length}: ${item.name}...`);
+          setPendingAttachments(prev => prev.map((a, idx) => idx === i ? { ...a, uploadStatus: 'UPLOADING' } : a));
+
+          try {
+            const uploaded = await api.uploadCitizenEvidence(
+              item.file,
+              category,
+              item.description,
+              (pct) => {
+                setPendingAttachments(prev => prev.map((a, idx) => idx === i ? { ...a, uploadProgress: pct } : a));
+              }
+            );
+            uploadedAttachments.push({
+              ...uploaded,
+              description: item.description
+            });
+            setPendingAttachments(prev => prev.map((a, idx) => idx === i ? { ...a, uploadStatus: 'SUCCESS', uploadProgress: 100 } : a));
+          } catch (uploadErr: any) {
+            console.error(`Failed to upload ${item.name}:`, uploadErr);
+            setPendingAttachments(prev => prev.map((a, idx) => idx === i ? { ...a, uploadStatus: 'ERROR', error: uploadErr.message } : a));
+            throw new Error(`Failed to upload evidence "${item.name}": ${uploadErr.message}`);
+          }
+        } else if (item.serverUrl) {
+          uploadedAttachments.push({
+            id: item.id,
+            filename: item.name,
+            file_url: item.serverUrl,
+            file_type: item.type,
+            file_size: item.size,
+            category: category,
+            description: item.description
+          });
+        }
+      }
+
+      setUploadOverallProgress('Transmitting incident report to Police Operations...');
+
+      const primaryUrl = uploadedAttachments.length > 0 ? uploadedAttachments[0].file_url : (attachmentUrl || undefined);
+
       const res = await api.submitPublicReport({
         category,
         description,
@@ -117,18 +531,24 @@ export const CitizenPortal: React.FC = () => {
         longitude,
         reporter_name: isAnonymous ? 'Anonymous Citizen' : reporterName,
         reporter_contact: isAnonymous ? '' : reporterContact,
-        attachment_url: attachmentUrl
+        attachment_url: primaryUrl,
+        attachments: uploadedAttachments
       });
 
       if (res && res.report_code) {
         setSubmittedCode(res.report_code);
         setTrackCodeInput(res.report_code);
+        pendingAttachments.forEach(a => {
+          if (a.previewUrl.startsWith('blob:')) URL.revokeObjectURL(a.previewUrl);
+        });
+        setPendingAttachments([]);
         await fetchMyReports();
       }
     } catch (err: any) {
-      alert('Error submitting report. Please try again.');
+      alert(err.message || 'Error submitting report. Please try again.');
     } finally {
       setIsSubmitting(false);
+      setUploadOverallProgress(null);
     }
   };
 
@@ -476,45 +896,262 @@ export const CitizenPortal: React.FC = () => {
                 />
               </div>
 
-              {/* Evidence Upload */}
-              <div className="space-y-2">
-                <label className="block text-xs font-bold text-[#172F50]">
-                  Attach Photographic or Video Evidence (Optional)
-                </label>
-                <div className="border-2 border-dashed border-[#CBDCEE] rounded-xl p-4 bg-[#F8FAFC] flex flex-col sm:flex-row items-center justify-between gap-4">
-                  <div className="flex items-center space-x-3">
-                    {attachmentUrl ? (
-                      <img src={attachmentUrl} alt="Evidence Preview" className="w-16 h-12 rounded-lg object-cover border border-[#CBDCEE]" />
-                    ) : (
-                      <div className="w-16 h-12 rounded-lg bg-[#E2EDF9] flex items-center justify-center text-[#2463A6]">
-                        <Camera className="w-6 h-6" />
-                      </div>
-                    )}
-                    <div>
-                      <div className="text-xs font-bold text-[#172F50]">
-                        {attachmentUrl ? 'Evidence Attached (1 file)' : 'Upload Photo or Video'}
-                      </div>
-                      <div className="text-[11px] text-[#8291A2]">Supports JPG, PNG, MP4 up to 50MB</div>
-                    </div>
-                  </div>
+              {/* Upgraded Citizen Evidence Upload System */}
+              <div className="space-y-3 pt-1">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+                  <label className="block text-xs font-bold text-[#172F50]">
+                    Attach Photographic or Video Evidence (Optional)
+                  </label>
+                  <span className="text-[11px] text-[#526477]">
+                    Supports JPG, PNG, WEBP, MP4, WEBM, MOV • Max 50MB per file
+                  </span>
+                </div>
 
+                {/* Hidden File Inputs */}
+                <input
+                  type="file"
+                  ref={photosInputRef}
+                  onChange={handlePhotosSelected}
+                  accept="image/jpeg,image/png,image/webp,image/jpg"
+                  multiple
+                  className="hidden"
+                />
+                <input
+                  type="file"
+                  ref={videosInputRef}
+                  onChange={handleVideosSelected}
+                  accept="video/mp4,video/webm,video/quicktime"
+                  multiple
+                  className="hidden"
+                />
+                <input
+                  type="file"
+                  ref={fallbackCameraInputRef}
+                  onChange={handleFallbackCameraCapture}
+                  accept="image/*"
+                  capture="environment"
+                  className="hidden"
+                />
+
+                {/* 3 Evidence Collection Option Buttons */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  {/* Option A: Open Camera */}
+                  <button
+                    type="button"
+                    onClick={() => startCamera('environment')}
+                    disabled={pendingAttachments.filter(a => a.type === 'PHOTO').length >= MAX_PHOTOS}
+                    className="p-3.5 rounded-xl border border-[#CBDCEE] hover:border-[#2463A6] bg-[#F8FAFC] hover:bg-[#EDF4FC] transition text-left flex items-center space-x-3 group disabled:opacity-50 disabled:hover:bg-[#F8FAFC]"
+                  >
+                    <div className="w-10 h-10 rounded-lg bg-blue-100 group-hover:bg-[#2463A6] text-[#2463A6] group-hover:text-white flex items-center justify-center transition shrink-0">
+                      <Camera className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <div className="text-xs font-bold text-[#172F50]">Open Camera</div>
+                      <div className="text-[11px] text-[#8291A2]">Take live photo</div>
+                    </div>
+                  </button>
+
+                  {/* Option B: Choose Photos */}
+                  <button
+                    type="button"
+                    onClick={() => photosInputRef.current?.click()}
+                    disabled={pendingAttachments.filter(a => a.type === 'PHOTO').length >= MAX_PHOTOS}
+                    className="p-3.5 rounded-xl border border-[#CBDCEE] hover:border-[#2463A6] bg-[#F8FAFC] hover:bg-[#EDF4FC] transition text-left flex items-center space-x-3 group disabled:opacity-50 disabled:hover:bg-[#F8FAFC]"
+                  >
+                    <div className="w-10 h-10 rounded-lg bg-indigo-100 group-hover:bg-indigo-600 text-indigo-700 group-hover:text-white flex items-center justify-center transition shrink-0">
+                      <ImageIcon className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <div className="text-xs font-bold text-[#172F50]">Choose Photos</div>
+                      <div className="text-[11px] text-[#8291A2]">Select multiple photos</div>
+                    </div>
+                  </button>
+
+                  {/* Option C: Choose Videos */}
+                  <button
+                    type="button"
+                    onClick={() => videosInputRef.current?.click()}
+                    disabled={pendingAttachments.filter(a => a.type === 'VIDEO').length >= MAX_VIDEOS}
+                    className="p-3.5 rounded-xl border border-[#CBDCEE] hover:border-[#2463A6] bg-[#F8FAFC] hover:bg-[#EDF4FC] transition text-left flex items-center space-x-3 group disabled:opacity-50 disabled:hover:bg-[#F8FAFC]"
+                  >
+                    <div className="w-10 h-10 rounded-lg bg-purple-100 group-hover:bg-purple-600 text-purple-700 group-hover:text-white flex items-center justify-center transition shrink-0">
+                      <Video className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <div className="text-xs font-bold text-[#172F50]">Choose Videos</div>
+                      <div className="text-[11px] text-[#8291A2]">Upload video clips</div>
+                    </div>
+                  </button>
+                </div>
+
+                {/* Live Capacity & Attachment Status Indicator */}
+                <div className="flex flex-wrap items-center justify-between text-xs px-3.5 py-2.5 bg-[#EDF4FC] border border-[#CBDCEE] rounded-xl text-[#172F50]">
                   <div className="flex items-center space-x-2">
-                    <button
-                      type="button"
-                      onClick={() => setAttachmentUrl('/static/sample_cctv_frame1.jpg')}
-                      className="px-3 py-1.5 rounded-lg border border-[#CBDCEE] text-[11px] font-semibold text-[#2463A6] hover:bg-[#E2EDF9] transition"
-                    >
-                      Attach Scene Photo
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setAttachmentUrl('/static/real_pedestrian_walk.mp4')}
-                      className="px-3 py-1.5 rounded-lg border border-[#CBDCEE] text-[11px] font-semibold text-[#2463A6] hover:bg-[#E2EDF9] transition"
-                    >
-                      Attach Video Clip
-                    </button>
+                    <span className="font-bold">
+                      Evidence attached: {pendingAttachments.length} of 13 files
+                    </span>
+                    <span className="text-[#8291A2]">•</span>
+                    <span className="text-[11px] text-[#526477]">
+                      Photos: <strong className="text-[#2463A6]">{pendingAttachments.filter(a => a.type === 'PHOTO').length}</strong>/{MAX_PHOTOS}
+                    </span>
+                    <span className="text-[#8291A2]">•</span>
+                    <span className="text-[11px] text-[#526477]">
+                      Videos: <strong className="text-purple-700">{pendingAttachments.filter(a => a.type === 'VIDEO').length}</strong>/{MAX_VIDEOS}
+                    </span>
+                  </div>
+                  <div className="flex items-center space-x-3 text-[11px] text-[#526477]">
+                    <span>
+                      Total Size: <strong>{(pendingAttachments.reduce((s, a) => s + a.size, 0) / (1024 * 1024)).toFixed(1)} MB</strong> / 250 MB
+                    </span>
+                    {pendingAttachments.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={handleClearAllAttachments}
+                        className="text-red-600 hover:text-red-800 font-semibold transition"
+                      >
+                        Clear All
+                      </button>
+                    )}
                   </div>
                 </div>
+
+                {/* Selected Evidence Thumbnail Gallery */}
+                {pendingAttachments.length > 0 && (
+                  <div className="space-y-3 pt-2">
+                    <div className="text-xs font-bold text-[#172F50]">
+                      Selected Evidence ({pendingAttachments.length} {pendingAttachments.length === 1 ? 'file' : 'files'})
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                      {pendingAttachments.map((item) => (
+                        <div
+                          key={item.id}
+                          className="bg-white border border-[#CBDCEE] rounded-xl p-3 shadow-sm flex flex-col justify-between space-y-2 relative group hover:border-[#2463A6] transition"
+                        >
+                          {/* Top row: Type badge & Action buttons */}
+                          <div className="flex items-center justify-between">
+                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
+                              item.type === 'PHOTO' ? 'bg-blue-100 text-[#2463A6]' : 'bg-purple-100 text-purple-700'
+                            }`}>
+                              {item.type}
+                            </span>
+                            <div className="flex items-center space-x-1">
+                              <button
+                                type="button"
+                                onClick={() => setPreviewModalItem({
+                                  name: item.name,
+                                  url: item.previewUrl,
+                                  type: item.type,
+                                  size: item.size,
+                                  description: item.description
+                                })}
+                                title="Inspect Evidence Preview"
+                                className="p-1 rounded-md text-[#526477] hover:text-[#2463A6] hover:bg-[#EDF4FC] transition"
+                              >
+                                <Eye className="w-4 h-4" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteAttachment(item.id)}
+                                title="Remove File"
+                                className="p-1 rounded-md text-[#8291A2] hover:text-red-600 hover:bg-red-50 transition"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Media Preview Box */}
+                          <div 
+                            onClick={() => setPreviewModalItem({
+                              name: item.name,
+                              url: item.previewUrl,
+                              type: item.type,
+                              size: item.size,
+                              description: item.description
+                            })}
+                            className="relative w-full h-32 rounded-lg bg-[#0F172A] overflow-hidden cursor-pointer flex items-center justify-center group/preview"
+                          >
+                            {item.type === 'PHOTO' ? (
+                              <img
+                                src={item.previewUrl}
+                                alt={item.name}
+                                className="w-full h-full object-cover transition-transform group-hover/preview:scale-105"
+                              />
+                            ) : (
+                              <>
+                                <video
+                                  src={item.previewUrl}
+                                  className="w-full h-full object-cover"
+                                  muted
+                                  playsInline
+                                />
+                                <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                                  <div className="w-9 h-9 rounded-full bg-white/80 text-[#172F50] flex items-center justify-center shadow">
+                                    <Play className="w-4 h-4 ml-0.5 fill-current" />
+                                  </div>
+                                </div>
+                              </>
+                            )}
+                            <div className="absolute bottom-1.5 right-1.5 px-1.5 py-0.5 rounded bg-black/70 text-white text-[10px] font-mono">
+                              {formatFileSize(item.size)}
+                            </div>
+                          </div>
+
+                          {/* Filename & optional description */}
+                          <div className="space-y-1.5">
+                            <div className="text-[11px] font-semibold text-[#172F50] truncate" title={item.name}>
+                              {item.name}
+                            </div>
+                            <input
+                              type="text"
+                              value={item.description}
+                              onChange={(e) => handleUpdateDescription(item.id, e.target.value)}
+                              placeholder="Add description (e.g. Near fountain facing South)"
+                              className="w-full px-2 py-1 text-[11px] bg-[#F8FAFC] border border-[#CBDCEE] rounded-lg text-[#172F50] placeholder:text-[#A0AEC0] focus:outline-none focus:border-[#2463A6] focus:bg-white"
+                            />
+                          </div>
+
+                          {/* Per-item upload status indicator */}
+                          {item.uploadStatus === 'UPLOADING' && (
+                            <div className="space-y-1 pt-1">
+                              <div className="flex justify-between text-[10px] text-[#2463A6] font-semibold">
+                                <span>Uploading...</span>
+                                <span>{item.uploadProgress || 0}%</span>
+                              </div>
+                              <div className="w-full h-1.5 bg-[#CBDCEE] rounded-full overflow-hidden">
+                                <div 
+                                  className="h-full bg-[#2463A6] transition-all duration-200"
+                                  style={{ width: `${item.uploadProgress || 0}%` }}
+                                />
+                              </div>
+                            </div>
+                          )}
+                          {item.uploadStatus === 'SUCCESS' && (
+                            <div className="flex items-center space-x-1 text-[10px] text-emerald-600 font-bold pt-1">
+                              <CheckCircle2 className="w-3 h-3" />
+                              <span>Evidence Uploaded</span>
+                            </div>
+                          )}
+                          {item.uploadStatus === 'ERROR' && (
+                            <div className="flex items-center space-x-1 text-[10px] text-red-600 font-bold pt-1">
+                              <AlertCircle className="w-3 h-3" />
+                              <span>{item.error || 'Upload failed'}</span>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Overall upload progress notification */}
+                {uploadOverallProgress && (
+                  <div className="p-3.5 rounded-xl bg-blue-50 border border-blue-200 flex items-center space-x-3 text-[#2463A6]">
+                    <RefreshCw className="w-4 h-4 animate-spin shrink-0" />
+                    <span className="text-xs font-semibold">{uploadOverallProgress}</span>
+                  </div>
+                )}
               </div>
 
               {/* Contact Info & Anonymous Toggle */}
@@ -680,6 +1317,95 @@ export const CitizenPortal: React.FC = () => {
                 </div>
               </div>
 
+              {/* Citizen Attached Evidence Gallery in Tracking */}
+              {((trackedReport.attachments && trackedReport.attachments.length > 0) || trackedReport.attachment_url) && (
+                <div className="space-y-3 pt-1 pb-2 border-b border-[#E1EAF2]">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-[#172F50] uppercase tracking-wider flex items-center space-x-1.5">
+                      <Film className="w-4 h-4 text-[#2463A6]" />
+                      <span>
+                        Attached Photographic & Video Evidence ({trackedReport.attachments?.length || 1})
+                      </span>
+                    </span>
+                    <span className="text-[10px] text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full font-bold border border-emerald-200">
+                      SHA-256 Chain of Custody Verified
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                    {trackedReport.attachments && trackedReport.attachments.length > 0 ? (
+                      trackedReport.attachments.map((att: any, idx: number) => {
+                        const isVid = att.file_type === 'VIDEO' || (att.file_url && att.file_url.endsWith('.mp4'));
+                        return (
+                          <div
+                            key={att.id || idx}
+                            onClick={() => setPreviewModalItem({
+                              name: att.filename || att.original_name || `Evidence_${idx + 1}`,
+                              url: att.file_url,
+                              type: isVid ? 'VIDEO' : 'PHOTO',
+                              size: att.file_size,
+                              description: att.description
+                            })}
+                            className="bg-[#F8FAFC] border border-[#CBDCEE] hover:border-[#2463A6] rounded-xl p-2.5 cursor-pointer transition space-y-1.5 group shadow-sm"
+                          >
+                            <div className="relative w-full h-24 rounded-lg bg-[#0F172A] overflow-hidden flex items-center justify-center">
+                              {isVid ? (
+                                <>
+                                  <video src={att.file_url} className="w-full h-full object-cover" muted playsInline />
+                                  <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                                    <div className="w-8 h-8 rounded-full bg-white/80 text-[#172F50] flex items-center justify-center shadow">
+                                      <Play className="w-3.5 h-3.5 ml-0.5 fill-current" />
+                                    </div>
+                                  </div>
+                                </>
+                              ) : (
+                                <img src={att.file_url} alt="Evidence" className="w-full h-full object-cover group-hover:scale-105 transition" />
+                              )}
+                              <span className="absolute top-1 left-1 px-1.5 py-0.5 rounded bg-black/70 text-white text-[9px] font-bold uppercase">
+                                {isVid ? 'VIDEO' : 'PHOTO'}
+                              </span>
+                            </div>
+                            <div className="text-[11px] font-semibold text-[#172F50] truncate" title={att.filename || att.original_name}>
+                              {att.filename || att.original_name || `Evidence_${idx + 1}`}
+                            </div>
+                            {att.description && (
+                              <div className="text-[10px] text-[#526477] truncate italic">
+                                "{att.description}"
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })
+                    ) : (
+                      <div
+                        onClick={() => setPreviewModalItem({
+                          name: 'Incident Scene Evidence',
+                          url: trackedReport.attachment_url,
+                          type: trackedReport.attachment_url.endsWith('.mp4') ? 'VIDEO' : 'PHOTO'
+                        })}
+                        className="bg-[#F8FAFC] border border-[#CBDCEE] hover:border-[#2463A6] rounded-xl p-2.5 cursor-pointer transition space-y-1.5 group shadow-sm col-span-1"
+                      >
+                        <div className="relative w-full h-24 rounded-lg bg-[#0F172A] overflow-hidden flex items-center justify-center">
+                          {trackedReport.attachment_url.endsWith('.mp4') ? (
+                            <>
+                              <video src={trackedReport.attachment_url} className="w-full h-full object-cover" muted playsInline />
+                              <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                                <Play className="w-6 h-6 text-white fill-white" />
+                              </div>
+                            </>
+                          ) : (
+                            <img src={trackedReport.attachment_url} alt="Evidence" className="w-full h-full object-cover group-hover:scale-105 transition" />
+                          )}
+                        </div>
+                        <div className="text-[11px] font-semibold text-[#172F50] truncate">
+                          Primary Scene Evidence
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
               {/* Status Timeline Stepper */}
               <div className="space-y-4">
                 <div className="text-xs font-bold text-[#172F50] uppercase tracking-wider">
@@ -765,6 +1491,211 @@ export const CitizenPortal: React.FC = () => {
               <div className="text-xs font-mono font-bold text-purple-700">Toll-Free Helpline: 1930</div>
               <div className="text-[11px] text-gray-500">Official Portal: cybercrime.gov.in</div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* CAMERA CAPTURE MODAL */}
+      {isCameraOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl border border-[#CBDCEE] shadow-2xl max-w-xl w-full overflow-hidden flex flex-col">
+            {/* Modal Header */}
+            <div className="px-5 py-4 border-b border-[#E1EAF2] flex items-center justify-between bg-[#F8FAFC]">
+              <div className="flex items-center space-x-2">
+                <Camera className="w-5 h-5 text-[#2463A6]" />
+                <h3 className="text-sm font-bold text-[#172F50]">
+                  Capture Incident Photographic Evidence
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={stopCamera}
+                className="p-1 rounded-lg text-[#8291A2] hover:text-[#172F50] hover:bg-[#E1EAF2] transition"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-5 space-y-4">
+              {cameraError ? (
+                <div className="p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 space-y-3">
+                  <div className="flex items-start space-x-2.5">
+                    <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
+                    <div>
+                      <div className="text-xs font-bold">Camera Access Restricted</div>
+                      <p className="text-[11px] text-red-600 mt-1">{cameraError}</p>
+                    </div>
+                  </div>
+                  <div className="pt-2 flex items-center space-x-3">
+                    <button
+                      type="button"
+                      onClick={() => fallbackCameraInputRef.current?.click()}
+                      className="px-4 py-2 rounded-xl bg-red-600 text-white text-xs font-bold hover:bg-red-700 transition flex items-center space-x-2"
+                    >
+                      <Camera className="w-4 h-4" />
+                      <span>Use Device Camera / Gallery Picker</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={stopCamera}
+                      className="px-3 py-2 rounded-xl border border-red-300 text-xs font-semibold text-red-700 hover:bg-red-100 transition"
+                    >
+                      Close
+                    </button>
+                  </div>
+                </div>
+              ) : capturedPhotoUrl ? (
+                /* Snapped Photo Review */
+                <div className="space-y-4">
+                  <div className="relative rounded-xl overflow-hidden bg-black max-h-[50vh] flex items-center justify-center border border-[#CBDCEE]">
+                    <img
+                      src={capturedPhotoUrl}
+                      alt="Captured scene"
+                      className="max-h-[50vh] w-auto object-contain"
+                    />
+                    <div className="absolute top-3 left-3 px-2 py-0.5 rounded-full bg-emerald-500 text-white text-[10px] font-bold uppercase tracking-wider shadow">
+                      ✓ Photo Captured
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-end space-x-3">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (capturedPhotoUrl) URL.revokeObjectURL(capturedPhotoUrl);
+                        setCapturedPhotoUrl(null);
+                        setCapturedBlob(null);
+                        if (videoRef.current && cameraStream) {
+                          videoRef.current.srcObject = cameraStream;
+                          videoRef.current.play().catch(() => {});
+                        }
+                      }}
+                      className="px-4 py-2 rounded-xl border border-[#CBDCEE] text-xs font-semibold text-[#526477] hover:bg-[#F8FAFC] transition flex items-center space-x-2"
+                    >
+                      <RotateCcw className="w-4 h-4" />
+                      <span>Retake Photo</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleAcceptCapturedPhoto}
+                      className="px-5 py-2 rounded-xl bg-[#2463A6] hover:bg-[#1E528B] text-white text-xs font-bold transition flex items-center space-x-2 shadow-sm"
+                    >
+                      <CheckCircle2 className="w-4 h-4" />
+                      <span>Accept & Attach Photo</span>
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                /* Live Viewfinder Feed */
+                <div className="space-y-4">
+                  <div className="relative rounded-xl overflow-hidden bg-black max-h-[50vh] flex items-center justify-center border border-[#CBDCEE] min-h-[260px]">
+                    <video
+                      ref={videoRef}
+                      autoPlay
+                      playsInline
+                      muted
+                      className="w-full h-full object-cover"
+                    />
+                    {/* Viewfinder Overlay */}
+                    <div className="absolute top-3 left-3 flex items-center space-x-2">
+                      <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-ping" />
+                      <span className="px-2 py-0.5 rounded bg-black/60 text-white text-[10px] font-mono font-bold tracking-wider">
+                        LIVE VIEWFINDER
+                      </span>
+                    </div>
+
+                    <div className="absolute top-3 right-3">
+                      <button
+                        type="button"
+                        onClick={toggleCameraFacing}
+                        title="Switch Camera (Front/Rear)"
+                        className="p-2 rounded-lg bg-black/60 hover:bg-black/80 text-white transition flex items-center space-x-1.5 text-[11px] font-semibold"
+                      >
+                        <RefreshCw className="w-3.5 h-3.5" />
+                        <span>Flip ({cameraFacing === 'environment' ? 'Rear' : 'Front'})</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-1">
+                    <button
+                      type="button"
+                      onClick={stopCamera}
+                      className="px-4 py-2 rounded-xl border border-[#CBDCEE] text-xs font-semibold text-[#526477] hover:bg-[#F8FAFC] transition"
+                    >
+                      Cancel
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={captureSnapshot}
+                      className="px-6 py-2.5 rounded-xl bg-[#2463A6] hover:bg-[#1E528B] text-white text-xs font-bold transition flex items-center space-x-2 shadow-sm"
+                    >
+                      <Camera className="w-4 h-4" />
+                      <span>Capture Photo</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* LIGHTBOX MODAL PREVIEW */}
+      {previewModalItem && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm">
+          <div className="bg-[#0F172A] rounded-2xl border border-slate-700 shadow-2xl max-w-3xl w-full overflow-hidden flex flex-col text-white">
+            <div className="px-5 py-3 border-b border-slate-800 flex items-center justify-between bg-slate-900">
+              <div className="flex items-center space-x-2.5 truncate pr-4">
+                <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
+                  previewModalItem.type === 'PHOTO' ? 'bg-blue-600 text-white' : 'bg-purple-600 text-white'
+                }`}>
+                  {previewModalItem.type}
+                </span>
+                <span className="text-xs font-semibold truncate text-slate-200">
+                  {previewModalItem.name}
+                </span>
+                {previewModalItem.size && (
+                  <span className="text-[11px] text-slate-400">
+                    ({formatFileSize(previewModalItem.size)})
+                  </span>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => setPreviewModalItem(null)}
+                className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition shrink-0"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-4 flex items-center justify-center bg-black/50 min-h-[300px]">
+              {previewModalItem.type === 'PHOTO' ? (
+                <img
+                  src={previewModalItem.url}
+                  alt={previewModalItem.name}
+                  className="max-h-[68vh] w-auto max-w-full object-contain rounded-lg"
+                />
+              ) : (
+                <video
+                  src={previewModalItem.url}
+                  controls
+                  autoPlay
+                  playsInline
+                  className="max-h-[68vh] w-auto max-w-full rounded-lg"
+                />
+              )}
+            </div>
+
+            {previewModalItem.description && (
+              <div className="px-5 py-3 border-t border-slate-800 bg-slate-900 text-xs text-slate-300">
+                <span className="font-semibold text-slate-400">Citizen Note: </span>
+                {previewModalItem.description}
+              </div>
+            )}
           </div>
         </div>
       )}

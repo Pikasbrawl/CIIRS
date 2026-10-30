@@ -1,14 +1,103 @@
+import os
+import uuid
+import shutil
 import random
 from datetime import datetime
-from typing import Optional, List
-from fastapi import APIRouter, Depends, HTTPException
+from typing import Optional, List, Dict, Any
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from app.database.session import get_db
 from app.database.models import PublicIncidentReport, Incident, Alert, IncidentAuditEntry
+from app.core.config import settings
 import hashlib
 
 router = APIRouter(prefix="/reports", tags=["Public Incident Reporting"])
+
+ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/jpg", "image/png", "image/webp"}
+ALLOWED_VIDEO_TYPES = {"video/mp4", "video/webm", "video/quicktime"}
+MAX_FILE_SIZE = 50 * 1024 * 1024  # 50 MB per file limit
+
+@router.post("/upload-evidence")
+async def upload_evidence(
+    file: UploadFile = File(...),
+    category: Optional[str] = Form("EVIDENCE"),
+    description: Optional[str] = Form("")
+):
+    content_type = (file.content_type or "").lower()
+    
+    is_image = content_type in ALLOWED_IMAGE_TYPES
+    is_video = content_type in ALLOWED_VIDEO_TYPES
+    
+    # Fallback to extension check if content_type is octet-stream
+    ext = os.path.splitext(file.filename or "")[1].lower()
+    if not (is_image or is_video):
+        if ext in [".jpg", ".jpeg", ".png", ".webp"]:
+            is_image = True
+            content_type = f"image/{ext.replace('.', '')}"
+            if ext == ".jpg":
+                content_type = "image/jpeg"
+        elif ext in [".mp4", ".webm", ".mov"]:
+            is_video = True
+            content_type = "video/mp4" if ext == ".mp4" else f"video/{ext.replace('.', '')}"
+            if ext == ".mov":
+                content_type = "video/quicktime"
+        else:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Unsupported file format: {ext or content_type}. Allowed formats: JPG, JPEG, PNG, WEBP, MP4, WEBM, MOV."
+            )
+            
+    # Read file content safely with size check
+    contents = await file.read()
+    file_size = len(contents)
+    
+    if file_size > MAX_FILE_SIZE:
+        raise HTTPException(
+            status_code=400,
+            detail=f"File exceeds 50 MB limit. Provided size: {file_size / (1024 * 1024):.2f} MB."
+        )
+    if file_size == 0:
+        raise HTTPException(status_code=400, detail="File is empty (0 bytes).")
+        
+    # Generate unique safe filename
+    file_id = f"evid_{uuid.uuid4().hex[:12]}"
+    clean_ext = ext if ext else (".png" if is_image else ".mp4")
+    safe_filename = f"{file_id}{clean_ext}"
+    
+    # Target directories
+    upload_dir = os.path.join(settings.UPLOAD_DIR, "citizen_evidence")
+    frontend_public_dir = os.path.join(os.path.dirname(settings.UPLOAD_DIR), "..", "frontend", "public", "static", "citizen_evidence")
+    frontend_dist_dir = os.path.join(os.path.dirname(settings.UPLOAD_DIR), "..", "frontend", "dist", "static", "citizen_evidence")
+    
+    os.makedirs(upload_dir, exist_ok=True)
+    
+    save_path = os.path.join(upload_dir, safe_filename)
+    with open(save_path, "wb") as f:
+        f.write(contents)
+        
+    # Also replicate to frontend static folders if they exist
+    for target_dir in [frontend_public_dir, frontend_dist_dir]:
+        try:
+            os.makedirs(target_dir, exist_ok=True)
+            shutil.copy2(save_path, os.path.join(target_dir, safe_filename))
+        except Exception:
+            pass
+            
+    file_url = f"/static/citizen_evidence/{safe_filename}"
+    
+    return {
+        "status": "SUCCESS",
+        "id": file_id,
+        "filename": safe_filename,
+        "original_name": file.filename,
+        "file_url": file_url,
+        "file_type": "PHOTO" if is_image else "VIDEO",
+        "mime_type": content_type,
+        "file_size": file_size,
+        "category": category or "CITIZEN_EVIDENCE",
+        "description": description or ""
+    }
 
 class ReportSubmitRequest(BaseModel):
     category: str
@@ -19,6 +108,7 @@ class ReportSubmitRequest(BaseModel):
     reporter_name: Optional[str] = "Pooja Sharma"
     reporter_contact: Optional[str] = ""
     attachment_url: Optional[str] = None
+    attachments: Optional[List[Dict[str, Any]]] = None
 
 class ReportVerifyRequest(BaseModel):
     action: str # UNDER_REVIEW, VERIFY_AND_CONVERT, DISMISS
@@ -40,6 +130,11 @@ def submit_public_report(payload: ReportSubmitRequest, db: Session = Depends(get
         }
     ]
 
+    attachments = payload.attachments or []
+    primary_attachment = payload.attachment_url
+    if not primary_attachment and attachments:
+        primary_attachment = attachments[0].get("file_url")
+
     report = PublicIncidentReport(
         report_code=code,
         category=payload.category,
@@ -49,7 +144,8 @@ def submit_public_report(payload: ReportSubmitRequest, db: Session = Depends(get
         address=payload.address,
         reporter_name=payload.reporter_name or "Anonymous Citizen",
         reporter_contact=payload.reporter_contact,
-        attachment_url=payload.attachment_url,
+        attachment_url=primary_attachment,
+        attachments=attachments,
         status="SUBMITTED",
         status_history=initial_history,
         created_at=now
@@ -83,6 +179,7 @@ def submit_public_report(payload: ReportSubmitRequest, db: Session = Depends(get
             "latitude": report.latitude,
             "longitude": report.longitude,
             "attachment_url": report.attachment_url,
+            "attachments": report.attachments or [],
             "status": report.status,
             "status_history": report.status_history,
             "created_at": report.created_at.isoformat()
@@ -115,6 +212,7 @@ def track_report(report_code: str, db: Session = Depends(get_db)):
         "description": rep.description,
         "address": rep.address,
         "attachment_url": rep.attachment_url,
+        "attachments": rep.attachments or [],
         "status": rep.status,
         "status_history": rep.status_history or [],
         "created_at": rep.created_at.isoformat(),

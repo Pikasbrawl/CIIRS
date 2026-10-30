@@ -379,6 +379,7 @@ class PublicIncidentReport(Base):
     longitude = Column(Float, nullable=False)
     address = Column(String(255), nullable=True)
     attachment_url = Column(String(500), nullable=True)
+    attachments = Column(JSON, default=list)
     reporter_name = Column(String(100), default="Pooja Sharma")
     reporter_contact = Column(String(100), nullable=True)
     status = Column(String(50), default="SUBMITTED") # SUBMITTED, UNDER_REVIEW, VERIFIED, DISMISSED
