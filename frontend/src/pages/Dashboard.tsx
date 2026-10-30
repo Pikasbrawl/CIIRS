@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
   Camera, Wifi, AlertTriangle, Video, Briefcase, Car, 
   MapPin, Maximize2, Crosshair, ChevronRight, Play, Eye, 
-  Search, ExternalLink, Shield, Check, Clock, TrendingUp
+  Search, ExternalLink, Shield, Check, Clock, TrendingUp,
+  Compass, Siren, Layers, Radio, ShieldAlert, X, RefreshCw
 } from 'lucide-react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -26,17 +27,25 @@ export const Dashboard: React.FC = () => {
   const [cameras, setCameras] = useState<CameraType[]>([]);
   const [alerts, setAlerts] = useState<AlertItem[]>([]);
   const [vehicles, setVehicles] = useState<VehicleDetection[]>([]);
+  const [gisData, setGisData] = useState<any>(null);
   const [selectedCameraId, setSelectedCameraId] = useState<string>('CAM-17-001');
   const [cameraFilter, setCameraFilter] = useState<string>('ALL');
+  const [activityFilter, setActivityFilter] = useState<string>('ALL');
   const [mapViewType, setMapViewType] = useState<string>('STANDARD');
   const [activeVehicleTab, setActiveVehicleTab] = useState<'LIVE' | 'SEARCH'>('LIVE');
   const [searchPlateInput, setSearchPlateInput] = useState<string>('');
   const [scrubberPosition, setScrubberPosition] = useState<number>(45); // percentage along timeline
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
+  const [isMapFullscreen, setIsMapFullscreen] = useState<boolean>(false);
+  const [mapSearchQuery, setMapSearchQuery] = useState<string>('');
+  const [isSearchingMap, setIsSearchingMap] = useState<boolean>(false);
+  const [showMapSearchBox, setShowMapSearchBox] = useState<boolean>(false);
+  const [mapSearchError, setMapSearchError] = useState<string | null>(null);
 
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
   const markersGroupRef = useRef<L.LayerGroup | null>(null);
+  const searchMarkerRef = useRef<L.Marker | null>(null);
 
   // Canvas animations for the 4 live feeds
   const canvasRefs = [
@@ -46,21 +55,23 @@ export const Dashboard: React.FC = () => {
     useRef<HTMLCanvasElement | null>(null)
   ];
 
-  // Fetch initial telemetry
+  // Fetch initial telemetry & GIS layers
   useEffect(() => {
     const loadDashboardData = async () => {
       try {
-        const [kpiRes, camRes, alertRes, vehRes] = await Promise.all([
+        const [kpiRes, camRes, alertRes, vehRes, gisRes] = await Promise.all([
           api.getDashboardKPI().catch(() => null),
           api.getCameras().catch(() => []),
-          api.getAlerts(5).catch(() => []),
-          api.getRecentVehicles(5).catch(() => [])
+          api.getAlerts(10).catch(() => []),
+          api.getRecentVehicles(5).catch(() => []),
+          api.getGISLayers().catch(() => null)
         ]);
 
         if (kpiRes) setKpiData(kpiRes);
         if (camRes && camRes.length > 0) setCameras(camRes);
         if (alertRes && alertRes.length > 0) setAlerts(alertRes);
         if (vehRes && vehRes.length > 0) setVehicles(vehRes);
+        if (gisRes) setGisData(gisRes);
       } catch (e) {
         console.error('Failed to load dashboard data', e);
       }
@@ -71,7 +82,7 @@ export const Dashboard: React.FC = () => {
     return () => clearInterval(interval);
   }, []);
 
-  // Initialize Leaflet Map
+  // Initialize Leaflet Map with OpenStreetMap Standard Street Tiles
   useEffect(() => {
     if (!mapContainerRef.current) return;
     if (mapInstanceRef.current) return;
@@ -79,18 +90,23 @@ export const Dashboard: React.FC = () => {
     // Center on Chandigarh: 30.7333, 76.7794
     const map = L.map(mapContainerRef.current, {
       center: [30.7333, 76.7794],
-      zoom: 13,
+      zoom: 12.5,
       zoomControl: true,
-      attributionControl: false
+      attributionControl: true
     });
 
-    // Light, crisp OpenStreetMap basemap
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-      maxZoom: 19
+    // Real OpenStreetMap Standard Tile Layer
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a> contributors'
     }).addTo(map);
 
     markersGroupRef.current = L.layerGroup().addTo(map);
     mapInstanceRef.current = map;
+
+    setTimeout(() => {
+      map.invalidateSize();
+    }, 200);
 
     return () => {
       map.remove();
@@ -98,55 +114,319 @@ export const Dashboard: React.FC = () => {
     };
   }, []);
 
-  // Update map markers when cameras or filter change
+  // Helper for strict coordinate validation
+  const isValidCoord = (lat: any, lon: any) => {
+    return typeof lat === 'number' && typeof lon === 'number' && !isNaN(lat) && !isNaN(lon) && lat > 30.4 && lat < 31.1 && lon > 76.4 && lon < 77.2;
+  };
+
+  // Update map markers when gisData, cameras, or activityFilter change
   useEffect(() => {
     if (!mapInstanceRef.current || !markersGroupRef.current) return;
-    markersGroupRef.current.clearLayers();
+    const group = markersGroupRef.current;
+    group.clearLayers();
 
-    const filtered = cameras.filter(cam => {
-      if (cameraFilter === 'CONNECTED') return cam.status === 'ONLINE';
-      if (cameraFilter === 'ALERT') return cam.is_tampered || cam.is_obstructed || cam.trust_score < 70;
-      if (cameraFilter === 'OFFLINE') return cam.status === 'OFFLINE';
-      return true;
-    });
+    const data = gisData || { cameras, incidents: [], alerts, reports: [], units: [] };
 
-    filtered.forEach(cam => {
-      let statusKey = 'CONNECTED';
-      if (cam.status === 'OFFLINE') statusKey = 'OFFLINE';
-      else if (cam.is_tampered || cam.is_obstructed || cam.trust_score < 70) statusKey = 'ALERT';
-      
-      const isSelected = cam.camera_id === selectedCameraId;
-
-      let color = '#16A36A'; // connected
-      if (statusKey === 'ALERT') color = '#E34D59';
-      if (statusKey === 'OFFLINE') color = '#8795A5';
-      if (isSelected) color = '#2463A6';
-
-      const icon = L.divIcon({
-        className: 'cctv-marker',
-        html: `<div style="background-color: ${color}; width: ${isSelected ? 16 : 12}px; height: ${isSelected ? 16 : 12}px; border-radius: 50%; border: 2px solid #FFFFFF; box-shadow: 0 1px 4px rgba(0,0,0,0.35); transition: all 0.2s;"></div>`,
-        iconSize: [isSelected ? 16 : 12, isSelected ? 16 : 12],
-        iconAnchor: [isSelected ? 8 : 6, isSelected ? 8 : 6]
+    // 1. CCTV Cameras
+    if (activityFilter === 'ALL' || activityFilter === 'CAMERAS' || activityFilter === 'CONNECTED' || activityFilter === 'OFFLINE') {
+      const camsToRender = (data.cameras || cameras).filter((cam: any) => {
+        if (!isValidCoord(cam.latitude, cam.longitude)) return false;
+        if (activityFilter === 'CONNECTED') return cam.status === 'ONLINE';
+        if (activityFilter === 'OFFLINE') return cam.status === 'OFFLINE';
+        return true;
       });
 
-      const marker = L.marker([cam.latitude, cam.longitude], { icon })
-        .bindPopup(`
-          <div style="font-family: inherit; font-size: 12px; line-height: 1.4;">
-            <div style="font-weight: 700; color: #172F50;">${cam.camera_id}</div>
-            <div style="color: #526477; font-size: 11px;">${cam.name}</div>
-            <div style="margin-top: 4px; display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 600; background: ${color}20; color: ${color};">
-              ${statusKey}
+      camsToRender.forEach((cam: any) => {
+        let statusKey = 'ONLINE';
+        let color = '#16A36A'; // Connected: Green
+        if (cam.status === 'OFFLINE') {
+          statusKey = 'OFFLINE';
+          color = '#8795A5'; // Offline: Grey
+        } else if (cam.is_tampered || cam.is_obstructed || cam.trust_score < 70 || cam.status === 'DEGRADED') {
+          statusKey = 'ALERT';
+          color = '#E5A12B'; // Warning / Degraded: Amber
+        }
+
+        const isSelected = cam.camera_id === selectedCameraId;
+
+        const icon = L.divIcon({
+          className: 'cctv-situational-marker',
+          html: `
+            <div style="
+              background-color: ${isSelected ? '#2463A6' : '#FFFFFF'}; 
+              border: 2px solid ${color}; 
+              width: ${isSelected ? 18 : 13}px; 
+              height: ${isSelected ? 18 : 13}px; 
+              border-radius: 50%; 
+              display: flex; 
+              align-items: center; 
+              justify-content: center; 
+              box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+              cursor: pointer;
+            ">
+              <div style="background-color: ${color}; width: ${isSelected ? 8 : 5}px; height: ${isSelected ? 8 : 5}px; border-radius: 50%;"></div>
+            </div>
+          `,
+          iconSize: [isSelected ? 18 : 13, isSelected ? 18 : 13],
+          iconAnchor: [isSelected ? 9 : 6.5, isSelected ? 9 : 6.5]
+        });
+
+        const marker = L.marker([cam.latitude, cam.longitude], { icon });
+        marker.bindPopup(`
+          <div style="font-family: inherit; font-size: 11px; line-height: 1.4; min-width: 175px;">
+            <div style="font-weight: 700; color: #172F50; font-size: 12px;">📹 ${cam.camera_id}</div>
+            <div style="color: #526477; font-size: 11px; font-weight: 500;">${cam.name}</div>
+            <div style="color: #8291A2; font-size: 10px; margin-top: 1px;">${cam.address || cam.area_zone || 'Chandigarh City'}</div>
+            <div style="font-family: monospace; font-size: 9px; color: #526477; margin-top: 2px;">
+              ${cam.latitude.toFixed(5)}° N, ${cam.longitude.toFixed(5)}° E
+            </div>
+            <div style="margin-top: 4px; padding-top: 4px; border-top: 1px solid #E1EAF2; display: flex; justify-content: space-between; align-items: center;">
+              <span style="font-size: 10px; font-weight: 700; color: ${color};">${cam.status || statusKey}</span>
+              <span style="font-size: 10px; color: #526477;">Trust: <b>${cam.trust_score || 98}%</b></span>
             </div>
           </div>
         `);
 
-      marker.on('click', () => {
-        setSelectedCameraId(cam.camera_id);
-      });
+        marker.on('click', () => {
+          setSelectedCameraId(cam.camera_id);
+        });
 
-      marker.addTo(markersGroupRef.current!);
+        marker.addTo(group);
+      });
+    }
+
+    // 2. AI Warnings (Predicted Early Warning Signals)
+    if (activityFilter === 'ALL' || activityFilter === 'WARNINGS') {
+      const alertsToRender = (data.alerts || []).filter((a: any) => isValidCoord(a.latitude, a.longitude));
+      alertsToRender.forEach((alt: any) => {
+        const icon = L.divIcon({
+          className: 'warning-marker',
+          html: `
+            <div style="position: relative; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; cursor: pointer;">
+              <div style="background-color: #D97706; color: white; width: 17px; height: 17px; border-radius: 4px; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 5px rgba(0,0,0,0.35); border: 1.5px solid white;">
+                <span style="font-size: 9px; font-weight: 900;">▲</span>
+              </div>
+            </div>
+          `,
+          iconSize: [22, 22],
+          iconAnchor: [11, 11]
+        });
+
+        const marker = L.marker([alt.latitude, alt.longitude], { icon });
+        marker.bindPopup(`
+          <div style="font-family: inherit; font-size: 11px; line-height: 1.4; min-width: 185px;">
+            <div style="font-size: 9px; font-weight: 800; color: #D97706; text-transform: uppercase;">⚠️ AI Early Warning (Predicted)</div>
+            <div style="font-weight: 700; color: #172F50; font-size: 12px; margin-top: 1px;">${alt.title || alt.alert_type}</div>
+            <div style="color: #526477; font-size: 10px;">${alt.location || alt.camera_name || 'Surveillance Node'}</div>
+            <div style="font-family: monospace; font-size: 9px; color: #8291A2; margin-top: 2px;">
+              ${alt.latitude.toFixed(5)}° N, ${alt.longitude.toFixed(5)}° E
+            </div>
+            <div style="margin-top: 4px; padding-top: 4px; border-top: 1px solid #E1EAF2; font-size: 9px; color: #8291A2;">
+              Confidence: <b>${alt.confidence || '94.2%'}</b> • Requires verification
+            </div>
+          </div>
+        `);
+        marker.addTo(group);
+      });
+    }
+
+    // 3. Verified Incidents
+    if (activityFilter === 'ALL' || activityFilter === 'INCIDENTS') {
+      const incToRender = (data.incidents || []).filter((inc: any) => isValidCoord(inc.latitude, inc.longitude));
+      incToRender.forEach((inc: any) => {
+        const isCritical = inc.severity === 'CRITICAL' || inc.severity === 'HIGH';
+        const color = isCritical ? '#E34D59' : '#E5A12B';
+
+        const icon = L.divIcon({
+          className: 'incident-marker',
+          html: `
+            <div style="position: relative; width: 26px; height: 26px; display: flex; align-items: center; justify-content: center; cursor: pointer;">
+              <div style="position: absolute; width: 26px; height: 26px; border-radius: 50%; background-color: ${color}; opacity: 0.35; animation: ping 1.5s infinite;"></div>
+              <div style="position: relative; background-color: ${color}; color: #ffffff; width: 18px; height: 18px; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 6px rgba(0,0,0,0.35); border: 2px solid white;">
+                <span style="font-size: 10px; font-weight: 900;">!</span>
+              </div>
+            </div>
+          `,
+          iconSize: [26, 26],
+          iconAnchor: [13, 13]
+        });
+
+        const marker = L.marker([inc.latitude, inc.longitude], { icon });
+        marker.bindPopup(`
+          <div style="font-family: inherit; font-size: 11px; line-height: 1.4; min-width: 185px;">
+            <div style="font-size: 9px; font-weight: 800; color: ${color}; text-transform: uppercase;">🚨 Verified Incident: ${inc.incident_number}</div>
+            <div style="font-weight: 700; color: #172F50; font-size: 12px; margin-top: 1px;">${inc.category}</div>
+            <div style="color: #526477; font-size: 10px;">${inc.address || 'Chandigarh Incident Area'}</div>
+            <div style="font-family: monospace; font-size: 9px; color: #8291A2; margin-top: 2px;">
+              ${inc.latitude.toFixed(5)}° N, ${inc.longitude.toFixed(5)}° E
+            </div>
+            <div style="margin-top: 4px; padding-top: 4px; border-top: 1px solid #E1EAF2; display: flex; justify-content: space-between; align-items: center;">
+              <span style="font-size: 10px; font-weight: 700; color: ${color};">${inc.severity} SEVERITY</span>
+              <span style="font-size: 9px; color: #16A36A; font-weight: 600;">Human Verified</span>
+            </div>
+          </div>
+        `);
+        marker.addTo(group);
+      });
+    }
+
+    // 4. Public Reports (Unverified Citizen Reports)
+    if (activityFilter === 'ALL' || activityFilter === 'REPORTS') {
+      const repToRender = (data.reports || []).filter((r: any) => isValidCoord(r.latitude, r.longitude));
+      repToRender.forEach((rep: any) => {
+        const icon = L.divIcon({
+          className: 'report-marker',
+          html: `
+            <div style="position: relative; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; cursor: pointer;">
+              <div style="background-color: #EA580C; color: white; width: 17px; height: 17px; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 5px rgba(0,0,0,0.3); border: 1.5px solid white;">
+                <span style="font-size: 9px; font-weight: 800;">i</span>
+              </div>
+            </div>
+          `,
+          iconSize: [22, 22],
+          iconAnchor: [11, 11]
+        });
+
+        const marker = L.marker([rep.latitude, rep.longitude], { icon });
+        marker.bindPopup(`
+          <div style="font-family: inherit; font-size: 11px; line-height: 1.4; min-width: 180px;">
+            <div style="font-size: 9px; font-weight: 800; color: #EA580C; text-transform: uppercase;">📢 Unverified Citizen Report</div>
+            <div style="font-weight: 700; color: #172F50; font-size: 12px; margin-top: 1px;">${rep.report_code}: ${rep.category}</div>
+            <div style="color: #526477; font-size: 10px;">${rep.address || rep.description || 'Public Report Location'}</div>
+            <div style="font-family: monospace; font-size: 9px; color: #8291A2; margin-top: 2px;">
+              ${rep.latitude.toFixed(5)}° N, ${rep.longitude.toFixed(5)}° E
+            </div>
+            <div style="margin-top: 4px; padding-top: 4px; border-top: 1px solid #E1EAF2; font-size: 9px; color: #EA580C;">
+              Status: <b>${rep.status || 'Pending Review'}</b>
+            </div>
+          </div>
+        `);
+        marker.addTo(group);
+      });
+    }
+
+    // 5. Emergency Response Units (Simulated)
+    if (activityFilter === 'ALL' || activityFilter === 'UNITS') {
+      const unitsToRender = (data.units || data.responders || []).filter((u: any) => isValidCoord(u.latitude, u.longitude));
+      unitsToRender.forEach((u: any) => {
+        const icon = L.divIcon({
+          className: 'unit-marker',
+          html: `
+            <div style="background-color: #2563EB; color: white; padding: 2px 5px; border-radius: 4px; font-size: 9px; font-weight: 700; border: 1.5px solid white; box-shadow: 0 2px 5px rgba(0,0,0,0.3); display: flex; align-items: center; gap: 3px; white-space: nowrap;">
+              <span>🚓</span>
+              <span>${u.unit_callsign || 'UNIT'}</span>
+            </div>
+          `,
+          iconSize: [60, 18],
+          iconAnchor: [30, 9]
+        });
+
+        const marker = L.marker([u.latitude, u.longitude], { icon });
+        marker.bindPopup(`
+          <div style="font-family: inherit; font-size: 11px; line-height: 1.4; min-width: 180px;">
+            <div style="font-size: 9px; font-weight: 800; color: #2563EB; text-transform: uppercase;">🚓 Emergency Unit (Simulation)</div>
+            <div style="font-weight: 700; color: #172F50; font-size: 12px; margin-top: 1px;">${u.unit_callsign} • ${u.agency_type || 'Police'}</div>
+            <div style="color: #526477; font-size: 10px;">Status: <b>${u.status}</b> • ${u.speed_kmh || 35} km/h</div>
+            <div style="font-family: monospace; font-size: 9px; color: #8291A2; margin-top: 2px;">
+              ${u.latitude.toFixed(5)}° N, ${u.longitude.toFixed(5)}° E
+            </div>
+            <div style="margin-top: 4px; padding-top: 4px; border-top: 1px solid #E1EAF2; font-size: 9px; color: #2563EB; font-weight: 600;">
+              SIMULATED UNIT TELEMETRY
+            </div>
+          </div>
+        `);
+        marker.addTo(group);
+      });
+    }
+  }, [gisData, cameras, alerts, activityFilter, selectedCameraId]);
+
+  // Reset to Chandigarh Center
+  const handleResetToChandigarh = () => {
+    if (mapInstanceRef.current) {
+      mapInstanceRef.current.flyTo([30.7333, 76.7794], 12.5, { duration: 0.8 });
+    }
+  };
+
+  // Location Search Handler for Dashboard Map
+  const handleDashboardMapSearch = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!mapSearchQuery.trim()) return;
+
+    setIsSearchingMap(true);
+    setMapSearchError(null);
+
+    const q = mapSearchQuery.trim().toLowerCase();
+    const landmarks: { [key: string]: [number, number] } = {
+      'sector 17': [30.740065, 76.782589],
+      'sector 22': [30.729000, 76.772500],
+      'sector 35': [30.721000, 76.762000],
+      'sector 43': [30.718000, 76.746000],
+      'sukhna lake': [30.741978, 76.817675],
+      'rock garden': [30.753196, 76.806630],
+      'panjab university': [30.760000, 76.768000],
+      'capitol complex': [30.758900, 76.805500],
+      'elante mall': [30.705500, 76.801300],
+      'isbt 17': [30.742200, 76.776600],
+      'isbt 43': [30.717600, 76.745400]
+    };
+
+    let targetCoords: [number, number] | null = null;
+    for (const [key, coords] of Object.entries(landmarks)) {
+      if (q.includes(key) || key.includes(q)) {
+        targetCoords = coords;
+        break;
+      }
+    }
+
+    if (targetCoords) {
+      applyMapSearchPin(targetCoords[0], targetCoords[1], mapSearchQuery);
+      setIsSearchingMap(false);
+      return;
+    }
+
+    try {
+      const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(mapSearchQuery + ', Chandigarh')}&limit=1`;
+      const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
+      const data = await res.json();
+      if (data && data.length > 0) {
+        applyMapSearchPin(parseFloat(data[0].lat), parseFloat(data[0].lon), data[0].display_name);
+      } else {
+        setMapSearchError('Location not found in Chandigarh.');
+      }
+    } catch {
+      setMapSearchError('Search failed.');
+    } finally {
+      setIsSearchingMap(false);
+    }
+  };
+
+  const applyMapSearchPin = (lat: number, lon: number, label: string) => {
+    if (!mapInstanceRef.current) return;
+    mapInstanceRef.current.flyTo([lat, lon], 15, { duration: 0.8 });
+
+    if (searchMarkerRef.current) {
+      mapInstanceRef.current.removeLayer(searchMarkerRef.current);
+    }
+
+    const pinIcon = L.divIcon({
+      className: 'dashboard-search-pin',
+      html: `
+        <div style="position: relative; width: 26px; height: 26px; display: flex; align-items: center; justify-content: center;">
+          <div style="background-color: #2463A6; border: 2px solid white; color: white; width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 6px rgba(0,0,0,0.35);">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+          </div>
+        </div>
+      `,
+      iconSize: [26, 26],
+      iconAnchor: [13, 13]
     });
-  }, [cameras, cameraFilter, selectedCameraId]);
+
+    const marker = L.marker([lat, lon], { icon: pinIcon })
+      .bindPopup(`<b style="font-size: 11px; color: #172F50;">${label}</b>`)
+      .addTo(mapInstanceRef.current)
+      .openPopup();
+    searchMarkerRef.current = marker;
+  };
 
   // Real Browser GPS "Locate Me"
   const handleLocateMe = () => {
@@ -157,34 +437,33 @@ export const Dashboard: React.FC = () => {
 
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        const { latitude, longitude } = pos.coords;
+        const { latitude, longitude, accuracy } = pos.coords;
         setUserLocation([latitude, longitude]);
         if (mapInstanceRef.current) {
-          mapInstanceRef.current.setView([latitude, longitude], 15);
+          mapInstanceRef.current.flyTo([latitude, longitude], 15, { duration: 0.8 });
           
           const gpsIcon = L.divIcon({
             className: 'gps-marker',
             html: `
-              <div style="position: relative; width: 20px; height: 20px;">
-                <div style="position: absolute; width: 20px; height: 20px; border-radius: 50%; background: #2677D9; opacity: 0.3; animation: ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;"></div>
-                <div style="position: absolute; top: 4px; left: 4px; width: 12px; height: 12px; border-radius: 50%; background: #2677D9; border: 2px solid white; box-shadow: 0 1px 3px rgba(0,0,0,0.3);"></div>
+              <div style="position: relative; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;">
+                <div style="position: absolute; width: 24px; height: 24px; border-radius: 50%; background: #2563EB; opacity: 0.35; animation: ping 2s cubic-bezier(0, 0, 0.2, 1) infinite;"></div>
+                <div style="width: 14px; height: 14px; border-radius: 50%; background: #1D4ED8; border: 2.5px solid white; box-shadow: 0 1px 4px rgba(0,0,0,0.4);"></div>
               </div>
             `,
-            iconSize: [20, 20],
-            iconAnchor: [10, 10]
+            iconSize: [24, 24],
+            iconAnchor: [12, 12]
           });
 
           L.marker([latitude, longitude], { icon: gpsIcon })
-            .bindPopup('<b style="color: #172F50; font-size: 12px;">Your Live Location</b>')
+            .bindPopup(`<b style="color: #172F50; font-size: 12px;">Your Live Location</b><br/><span style="font-size: 10px; color: #64748B;">Accuracy: ±${Math.round(accuracy)}m</span>`)
             .addTo(mapInstanceRef.current)
             .openPopup();
         }
       },
       (err) => {
         console.warn('Geolocation error:', err.message);
-        // Default graceful center to Sector 17
         if (mapInstanceRef.current) {
-          mapInstanceRef.current.setView([30.7398, 76.7827], 14);
+          mapInstanceRef.current.setView([30.7398, 76.7827], 13);
         }
       },
       { enableHighAccuracy: true, timeout: 8000 }
@@ -404,79 +683,223 @@ export const Dashboard: React.FC = () => {
           MIDDLE ROW (3 COLUMNS: MAP | 2X2 LIVE FEEDS | RECENT ALERTS)
       ========================================================================== */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-        {/* Col 1: City Camera Network Map (5 cols) */}
-        <div className="lg:col-span-5 bg-white border border-[#E1EAF2] rounded-xl p-4 shadow-sm flex flex-col h-[410px]">
-          {/* Map Header */}
-          <div className="flex items-center justify-between mb-3 shrink-0">
+        {/* Col 1: Chandigarh Situational Awareness Map (5 cols) */}
+        <div className={`lg:col-span-5 bg-white border border-[#E1EAF2] rounded-xl p-3.5 shadow-sm flex flex-col ${
+          isMapFullscreen ? 'fixed inset-4 z-50 rounded-xl shadow-2xl h-[calc(100vh-32px)]' : 'h-[440px]'
+        }`}>
+          {/* Header Row: Title, Filters & Controls */}
+          <div className="flex items-center justify-between mb-2 shrink-0">
             <div className="flex items-center space-x-2">
               <MapPin className="w-4 h-4 text-[#2463A6]" />
-              <h2 className="text-sm font-bold text-[#172F50]">
-                Chandigarh City - Camera Network
-              </h2>
+              <div>
+                <h2 className="text-sm font-bold text-[#172F50] leading-tight">
+                  Chandigarh Situational Awareness Map
+                </h2>
+                <p className="text-[10px] text-[#8291A2]">Real-time public safety GIS</p>
+              </div>
             </div>
 
             <div className="flex items-center space-x-1.5">
+              {/* Activity Filter Dropdown */}
               <select
-                value={cameraFilter}
-                onChange={(e) => setCameraFilter(e.target.value)}
-                className="text-[11px] font-medium bg-[#F4F8FC] border border-[#E1EAF2] rounded px-2 py-1 text-[#172F50] focus:outline-none"
+                value={activityFilter}
+                onChange={(e) => setActivityFilter(e.target.value)}
+                className="text-[11px] font-semibold bg-[#F4F8FC] border border-[#E1EAF2] rounded px-2 py-1 text-[#172F50] focus:outline-none cursor-pointer"
               >
-                <option value="ALL">All Cameras</option>
-                <option value="CONNECTED">Connected Only</option>
-                <option value="ALERT">Alerts Only</option>
-                <option value="OFFLINE">Offline Only</option>
+                <option value="ALL">All Activity</option>
+                <option value="CAMERAS">Cameras (100)</option>
+                <option value="CONNECTED">Connected Only (86)</option>
+                <option value="OFFLINE">Offline Only (9)</option>
+                <option value="WARNINGS">AI Warnings ({gisData?.alerts?.length || 22})</option>
+                <option value="INCIDENTS">Verified Incidents ({gisData?.incidents?.length || 17})</option>
+                <option value="REPORTS">Public Reports ({gisData?.reports?.length || 2})</option>
+                <option value="UNITS">Response Units ({gisData?.units?.length || 9})</option>
               </select>
 
+              {/* Toggle Search Input */}
+              <button
+                onClick={() => setShowMapSearchBox(!showMapSearchBox)}
+                title="Search Chandigarh Location"
+                className={`p-1 rounded border transition ${
+                  showMapSearchBox ? 'bg-[#2463A6] text-white border-[#2463A6]' : 'bg-[#F4F8FC] border-[#E1EAF2] text-[#2463A6] hover:bg-[#DCEBFA]'
+                }`}
+              >
+                <Search className="w-3.5 h-3.5" />
+              </button>
+
+              {/* Reset to Chandigarh Button */}
+              <button
+                onClick={handleResetToChandigarh}
+                title="Reset to Chandigarh"
+                className="p-1 rounded bg-[#F4F8FC] border border-[#E1EAF2] hover:bg-[#DCEBFA] text-[#2463A6] transition"
+              >
+                <Compass className="w-3.5 h-3.5" />
+              </button>
+
+              {/* Browser GPS Locate Me */}
               <button 
                 onClick={handleLocateMe}
-                title="Locate Me (Browser GPS)"
+                title="Locate Me (Device GPS)"
                 className="p-1 rounded bg-[#F4F8FC] border border-[#E1EAF2] hover:bg-[#DCEBFA] text-[#2463A6] transition"
               >
                 <Crosshair className="w-3.5 h-3.5" />
               </button>
 
+              {/* Fullscreen Map Toggle */}
               <button 
-                onClick={() => setActiveTab('gis-map')}
-                title="Full-Screen GIS View"
+                onClick={() => {
+                  setIsMapFullscreen(!isMapFullscreen);
+                  setTimeout(() => mapInstanceRef.current?.invalidateSize(), 200);
+                }}
+                title={isMapFullscreen ? 'Exit Fullscreen' : 'Fullscreen Map'}
                 className="p-1 rounded bg-[#F4F8FC] border border-[#E1EAF2] hover:bg-[#DCEBFA] text-[#2463A6] transition"
               >
                 <Maximize2 className="w-3.5 h-3.5" />
               </button>
+
+              {/* Open in City Map Page */}
+              <button
+                onClick={() => setActiveTab('gis-map')}
+                title="Open Dedicated City Map Page"
+                className="p-1 rounded bg-[#EBF3FC] border border-[#DCEBFA] hover:bg-[#D0E4FA] text-[#2463A6] transition"
+              >
+                <ExternalLink className="w-3.5 h-3.5" />
+              </button>
             </div>
+          </div>
+
+          {/* Search Box Drawer (if toggled) */}
+          {showMapSearchBox && (
+            <div className="mb-2 shrink-0">
+              <form onSubmit={handleDashboardMapSearch} className="flex items-center space-x-1.5">
+                <div className="relative flex-1">
+                  <Search className="w-3 h-3 text-[#8291A2] absolute left-2.5 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    value={mapSearchQuery}
+                    onChange={(e) => setMapSearchQuery(e.target.value)}
+                    placeholder="Search Sector 17, 22, 35, Sukhna Lake, PU..."
+                    className="w-full pl-7 pr-6 py-1 text-[11px] bg-[#F4F8FC] border border-[#E1EAF2] rounded text-[#172F50] placeholder-[#8291A2] focus:outline-none focus:border-[#2463A6]"
+                  />
+                  {mapSearchQuery && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMapSearchQuery('');
+                        if (searchMarkerRef.current && mapInstanceRef.current) {
+                          mapInstanceRef.current.removeLayer(searchMarkerRef.current);
+                          searchMarkerRef.current = null;
+                        }
+                      }}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-[#8291A2] hover:text-[#172F50]"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  )}
+                </div>
+                <button
+                  type="submit"
+                  disabled={isSearchingMap}
+                  className="px-2.5 py-1 text-[11px] font-semibold bg-[#2463A6] hover:bg-[#1E528B] text-white rounded transition"
+                >
+                  {isSearchingMap ? '...' : 'Find'}
+                </button>
+              </form>
+              {mapSearchError && (
+                <div className="text-[10px] text-[#E34D59] mt-1">{mapSearchError}</div>
+              )}
+            </div>
+          )}
+
+          {/* Compact Live Status Strip */}
+          <div className="flex items-center space-x-1.5 mb-2 overflow-x-auto pb-0.5 shrink-0 scrollbar-none text-[10px]">
+            <button
+              onClick={() => setActivityFilter('CAMERAS')}
+              className={`px-2 py-0.5 rounded-full border transition whitespace-nowrap flex items-center space-x-1 ${
+                activityFilter === 'CAMERAS' ? 'bg-[#16A36A] text-white border-[#16A36A]' : 'bg-[#F4F8FC] text-[#526477] border-[#E1EAF2] hover:bg-[#EBF3FC]'
+              }`}
+            >
+              <span className={`w-1.5 h-1.5 rounded-full ${activityFilter === 'CAMERAS' ? 'bg-white' : 'bg-[#16A36A]'}`}></span>
+              <span>100 Cams (86 Online)</span>
+            </button>
+
+            <button
+              onClick={() => setActivityFilter('WARNINGS')}
+              className={`px-2 py-0.5 rounded-full border transition whitespace-nowrap flex items-center space-x-1 ${
+                activityFilter === 'WARNINGS' ? 'bg-[#D97706] text-white border-[#D97706]' : 'bg-[#F4F8FC] text-[#526477] border-[#E1EAF2] hover:bg-[#EBF3FC]'
+              }`}
+            >
+              <span className={`w-1.5 h-1.5 rounded-full ${activityFilter === 'WARNINGS' ? 'bg-white' : 'bg-[#D97706]'}`}></span>
+              <span>{gisData?.alerts?.length || 22} AI Warnings</span>
+            </button>
+
+            <button
+              onClick={() => setActivityFilter('INCIDENTS')}
+              className={`px-2 py-0.5 rounded-full border transition whitespace-nowrap flex items-center space-x-1 ${
+                activityFilter === 'INCIDENTS' ? 'bg-[#E34D59] text-white border-[#E34D59]' : 'bg-[#F4F8FC] text-[#526477] border-[#E1EAF2] hover:bg-[#EBF3FC]'
+              }`}
+            >
+              <span className={`w-1.5 h-1.5 rounded-full ${activityFilter === 'INCIDENTS' ? 'bg-white' : 'bg-[#E34D59]'}`}></span>
+              <span>{gisData?.incidents?.length || 17} Incidents</span>
+            </button>
+
+            <button
+              onClick={() => setActivityFilter('REPORTS')}
+              className={`px-2 py-0.5 rounded-full border transition whitespace-nowrap flex items-center space-x-1 ${
+                activityFilter === 'REPORTS' ? 'bg-[#EA580C] text-white border-[#EA580C]' : 'bg-[#F4F8FC] text-[#526477] border-[#E1EAF2] hover:bg-[#EBF3FC]'
+              }`}
+            >
+              <span className={`w-1.5 h-1.5 rounded-full ${activityFilter === 'REPORTS' ? 'bg-white' : 'bg-[#EA580C]'}`}></span>
+              <span>{gisData?.reports?.length || 2} Reports</span>
+            </button>
+
+            <button
+              onClick={() => setActivityFilter('UNITS')}
+              className={`px-2 py-0.5 rounded-full border transition whitespace-nowrap flex items-center space-x-1 ${
+                activityFilter === 'UNITS' ? 'bg-[#2563EB] text-white border-[#2563EB]' : 'bg-[#F4F8FC] text-[#526477] border-[#E1EAF2] hover:bg-[#EBF3FC]'
+              }`}
+            >
+              <span className={`w-1.5 h-1.5 rounded-full ${activityFilter === 'UNITS' ? 'bg-white' : 'bg-[#2563EB]'}`}></span>
+              <span>{gisData?.units?.length || 9} Units (Sim)</span>
+            </button>
           </div>
 
           {/* Leaflet Map Frame with Floating Status Legend */}
           <div className="relative flex-1 rounded-lg overflow-hidden border border-[#E1EAF2]">
             <div ref={mapContainerRef} className="w-full h-full z-0" />
 
-            {/* Floating Legend Top-Left (Matches Screenshot) */}
-            <div className="absolute top-2.5 left-2.5 z-10 bg-white/95 backdrop-blur-sm border border-[#E1EAF2] rounded-lg p-2 shadow-sm text-[10px] font-medium space-y-1">
+            {/* Floating Legend Top-Left */}
+            <div className="absolute top-2 left-2 z-10 bg-white/95 backdrop-blur-sm border border-[#E1EAF2] rounded-lg px-2 py-1.5 shadow-md text-[9px] font-medium space-y-1">
               <div className="flex items-center space-x-1.5 text-[#526477]">
                 <span className="w-2 h-2 rounded-full bg-[#16A36A]"></span>
-                <span>Connected (86)</span>
+                <span>Connected Cam ({gisData?.cameras?.filter((c: any) => c.status === 'ONLINE').length || 86})</span>
               </div>
               <div className="flex items-center space-x-1.5 text-[#526477]">
-                <span className="w-2 h-2 rounded-full bg-[#E34D59]"></span>
-                <span>Alert (5)</span>
+                <span className="w-2 h-2 rounded-sm bg-[#D97706] text-white flex items-center justify-center text-[7px] font-bold">▲</span>
+                <span>AI Warning ({gisData?.alerts?.length || 22})</span>
+              </div>
+              <div className="flex items-center space-x-1.5 text-[#526477]">
+                <span className="w-2 h-2 rounded-full bg-[#E34D59] animate-ping"></span>
+                <span>Verified Incident ({gisData?.incidents?.length || 17})</span>
+              </div>
+              <div className="flex items-center space-x-1.5 text-[#526477]">
+                <span className="w-2 h-2 rounded-full bg-[#EA580C]"></span>
+                <span>Public Report ({gisData?.reports?.length || 2})</span>
+              </div>
+              <div className="flex items-center space-x-1.5 text-[#526477]">
+                <span className="w-2 h-2 rounded bg-[#2563EB]"></span>
+                <span>Unit (9 Sim)</span>
               </div>
               <div className="flex items-center space-x-1.5 text-[#526477]">
                 <span className="w-2 h-2 rounded-full bg-[#8795A5]"></span>
                 <span>Offline (9)</span>
-              </div>
-              <div className="flex items-center space-x-1.5 text-[#526477]">
-                <span className="w-2 h-2 rounded-full bg-[#E5A12B]"></span>
-                <span>Maintenance (0)</span>
-              </div>
-              <div className="flex items-center space-x-1.5 text-[#526477]">
-                <span className="w-2 h-2 rounded-full bg-[#2463A6]"></span>
-                <span>Selected</span>
               </div>
             </div>
           </div>
         </div>
 
         {/* Col 2: Live Camera Feeds (Selected Cameras) - 2x2 Grid (4 cols) */}
-        <div className="lg:col-span-4 bg-white border border-[#E1EAF2] rounded-xl p-4 shadow-sm flex flex-col h-[410px]">
+        <div className="lg:col-span-4 bg-white border border-[#E1EAF2] rounded-xl p-4 shadow-sm flex flex-col h-[440px]">
           <div className="flex items-center justify-between mb-3 shrink-0">
             <div className="flex items-center space-x-2">
               <Video className="w-4 h-4 text-[#2463A6]" />
@@ -545,7 +968,7 @@ export const Dashboard: React.FC = () => {
         </div>
 
         {/* Col 3: Recent Alerts (3 cols) */}
-        <div className="lg:col-span-3 bg-white border border-[#E1EAF2] rounded-xl p-4 shadow-sm flex flex-col h-[410px]">
+        <div className="lg:col-span-3 bg-white border border-[#E1EAF2] rounded-xl p-4 shadow-sm flex flex-col h-[440px]">
           <div className="flex items-center justify-between mb-3 shrink-0">
             <h2 className="text-sm font-bold text-[#172F50]">
               Recent Alerts
