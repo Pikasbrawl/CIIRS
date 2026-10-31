@@ -36,7 +36,5 @@ yarn-error.log*
 # Temporary files
 /tmp/
 *.log
-atm detect.mp4
-Video/
 backend-go/server
 backend/backups/
