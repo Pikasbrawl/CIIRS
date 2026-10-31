@@ -1,8 +1,9 @@
-from fastapi import FastAPI
+import os
+import httpx
+from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
-import os
 
 from app.core.config import settings
 from app.database.session import engine, Base, SessionLocal
@@ -68,6 +69,41 @@ app.include_router(audit_router, prefix=settings.API_V1_STR)
 app.include_router(reconstruction_router, prefix=settings.API_V1_STR)
 app.include_router(system_router, prefix=settings.API_V1_STR)
 app.include_router(ws_router)
+
+# Forward /api/v1 calls directly to Go + Gin high-performance backend on port 8080
+@app.api_route("/api/v1/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"])
+async def forward_to_go_backend(request: Request, path: str):
+    target_url = f"http://127.0.0.1:8080/api/v1/{path}"
+    if request.url.query:
+        target_url += f"?{request.url.query}"
+    
+    body = await request.body()
+    headers = dict(request.headers)
+    headers.pop("host", None)
+    headers.pop("content-length", None)
+    
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        try:
+            resp = await client.request(
+                method=request.method,
+                url=target_url,
+                headers=headers,
+                content=body
+            )
+            # Filter hop-by-hop headers
+            excluded = {"content-encoding", "transfer-encoding", "content-length", "connection"}
+            resp_headers = {k: v for k, v in resp.headers.items() if k.lower() not in excluded}
+            return Response(
+                content=resp.content,
+                status_code=resp.status_code,
+                headers=resp_headers
+            )
+        except Exception as e:
+            return Response(
+                content=f'{{"status":"error","error":"Go backend unreachable: {str(e)}"}}'.encode("utf-8"),
+                status_code=503,
+                media_type="application/json"
+            )
 
 # Mount static directories
 uploads_dir = settings.UPLOAD_DIR

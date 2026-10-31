@@ -570,5 +570,76 @@ export const api = {
       method: 'POST'
     });
     return res.json();
+  },
+
+  // --- Go + Gin Technical Backend Endpoints (/api/v1) ---
+  getGoHealth: async (): Promise<any> => {
+    const res = await fetch(`/api/v1/health`);
+    if (!res.ok) throw new Error(`Health check failed: ${res.status}`);
+    return res.json();
+  },
+
+  getHealthDatabase: async (): Promise<any> => {
+    const res = await fetch(`/api/v1/health/database`);
+    return res.json();
+  },
+
+  getHealthRedis: async (): Promise<any> => {
+    const res = await fetch(`/api/v1/health/redis`);
+    return res.json();
+  },
+
+  getHealthAiWorker: async (): Promise<any> => {
+    const res = await fetch(`/api/v1/health/ai-worker`);
+    return res.json();
+  },
+
+  getSystemEndpoints: async (): Promise<any> => {
+    const res = await fetch(`/api/v1/system/endpoints`);
+    if (!res.ok) throw new Error(`Failed to fetch endpoints registry: ${res.status}`);
+    return res.json();
+  },
+
+  getSystemStatus: async (): Promise<any> => {
+    const res = await fetch(`/api/v1/system/status`);
+    if (!res.ok) throw new Error(`Failed to fetch system status: ${res.status}`);
+    return res.json();
+  },
+
+  getDatabaseStats: async (): Promise<any> => {
+    const res = await fetch(`/api/v1/system/database`);
+    if (!res.ok) throw new Error(`Failed to fetch database stats: ${res.status}`);
+    return res.json();
+  },
+
+  getTableRecords: async (tableName: string, page: number = 1, limit: number = 20): Promise<any> => {
+    const res = await fetch(`/api/v1/system/database/table/${tableName}?page=${page}&limit=${limit}`);
+    if (!res.ok) throw new Error(`Failed to fetch records for ${tableName}: ${res.status}`);
+    return res.json();
+  },
+
+  getStorageStats: async (): Promise<any> => {
+    const res = await fetch(`/api/v1/system/storage`);
+    if (!res.ok) throw new Error(`Failed to fetch storage stats: ${res.status}`);
+    return res.json();
+  },
+
+  getStreamsStats: async (): Promise<any> => {
+    const res = await fetch(`/api/v1/system/streams`);
+    if (!res.ok) throw new Error(`Failed to fetch streams stats: ${res.status}`);
+    return res.json();
+  },
+
+  retryProcessingJob: async (jobId: string): Promise<any> => {
+    const res = await fetch(`/api/v1/system/streams/retry-job`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ job_id: jobId })
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: `Failed with status ${res.status}` }));
+      throw new Error(err.error || `Failed to retry job`);
+    }
+    return res.json();
   }
 };

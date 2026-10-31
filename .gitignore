@@ -38,3 +38,5 @@ yarn-error.log*
 *.log
 atm detect.mp4
 Video/
+backend-go/server
+backend/backups/
