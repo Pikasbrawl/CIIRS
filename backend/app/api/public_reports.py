@@ -190,10 +190,16 @@ def submit_public_report(payload: ReportSubmitRequest, db: Session = Depends(get
 def list_reports(status: Optional[str] = None, limit: int = 50, db: Session = Depends(get_db)):
     """
     Police / Operations endpoint to inspect incoming citizen reports.
+    Supports filtering by specific status, or 'ACTIVE' for pending/in-review reports.
     """
     query = db.query(PublicIncidentReport)
     if status:
-        query = query.filter(PublicIncidentReport.status == status)
+        if status.upper() == "ACTIVE":
+            query = query.filter(PublicIncidentReport.status.in_(["SUBMITTED", "UNDER_REVIEW"]))
+        elif status.upper() in ["DECLINED", "DISMISSED"]:
+            query = query.filter(PublicIncidentReport.status.in_(["DECLINED", "DISMISSED"]))
+        else:
+            query = query.filter(PublicIncidentReport.status == status.upper())
     return query.order_by(PublicIncidentReport.created_at.desc()).limit(limit).all()
 
 @router.get("/{report_code}")
@@ -236,8 +242,30 @@ def verify_citizen_report(
     if not rep:
         raise HTTPException(status_code=404, detail="Incident report not found")
 
+    # Mandatory Assessment Notes validation: operator MUST write assessment notes
+    clean_notes = (payload.review_notes or "").strip()
+    if not clean_notes or len(clean_notes) < 3:
+        raise HTTPException(
+            status_code=400,
+            detail="Operator assessment notes are strictly required before accepting, reviewing, or declining this report."
+        )
+
     now = datetime.utcnow()
     current_history = list(rep.status_history or [])
+
+    def sync_to_postgres(status_val: str, notes_val: str):
+        try:
+            import psycopg2
+            pg_conn = psycopg2.connect("dbname=ciirs_db user=shivang")
+            pg_cur = pg_conn.cursor()
+            pg_cur.execute(
+                "UPDATE citizen_reports SET status = %s, review_notes = %s, updated_at = %s WHERE report_code = %s",
+                (status_val, notes_val, now, report_code)
+            )
+            pg_conn.commit()
+            pg_conn.close()
+        except Exception:
+            pass
 
     if payload.action == "VERIFY_AND_CONVERT":
         # Create corresponding formal Incident
@@ -253,7 +281,7 @@ def verify_citizen_report(
             status="VERIFIED",
             ai_confidence=0.92,
             ai_explanation=f"Verified citizen report ({report_code}): {rep.description}",
-            operator_notes=f"Converted by {payload.operator_name}. {payload.review_notes}",
+            operator_notes=f"Converted by {payload.operator_name}. {clean_notes}",
             verified_by=payload.operator_name,
             verified_at=now,
             created_at=now
@@ -265,14 +293,15 @@ def verify_citizen_report(
         rep.status = "VERIFIED"
         rep.incident_id = inc.id
         rep.incident_number = inc.incident_number
-        rep.review_notes = payload.review_notes
+        rep.review_notes = clean_notes
 
         current_history.append({
             "status": "VERIFIED",
             "timestamp": now.strftime("%d %b %Y, %H:%M IST"),
-            "note": f"Report verified by Operations Control. Assigned formal response case {new_inc_num}. Field responders dispatched."
+            "note": f"Report verified by Operations Control ({payload.operator_name}). Assessment: {clean_notes}. Assigned formal response case {new_inc_num}."
         })
         rep.status_history = current_history
+        db.commit()
 
         # Also add initial entry into Incident Audit ledger
         prev_hash = "0" * 64
@@ -288,7 +317,7 @@ def verify_citizen_report(
             organization="Chandigarh Smart City Integrated Operations Centre",
             entry_title=f"Citizen Report {report_code} Verified & Converted",
             entry_category="INITIAL_SCENE_ASSESSMENT",
-            description=f"Citizen Report {report_code} verified. Location: {rep.address}. Operator notes: {payload.review_notes}",
+            description=f"Citizen Report {report_code} verified. Location: {rep.address}. Operator notes: {clean_notes}",
             location=rep.address or "Chandigarh",
             evidence_url=rep.attachment_url,
             previous_entry_hash=prev_hash,
@@ -297,6 +326,8 @@ def verify_citizen_report(
         )
         db.add(audit_entry)
         db.commit()
+
+        sync_to_postgres("VERIFIED", clean_notes)
 
         return {
             "status": "SUCCESS",
@@ -308,14 +339,16 @@ def verify_citizen_report(
 
     elif payload.action == "UNDER_REVIEW":
         rep.status = "UNDER_REVIEW"
-        rep.review_notes = payload.review_notes
+        rep.review_notes = clean_notes
         current_history.append({
             "status": "UNDER_REVIEW",
             "timestamp": now.strftime("%d %b %Y, %H:%M IST"),
-            "note": f"Report assigned to {payload.operator_name} for active verification and CCTV correlation."
+            "note": f"Report marked Under Review by {payload.operator_name}. Assessment: {clean_notes}"
         })
         rep.status_history = current_history
         db.commit()
+
+        sync_to_postgres("UNDER_REVIEW", clean_notes)
 
         return {
             "status": "SUCCESS",
@@ -323,21 +356,23 @@ def verify_citizen_report(
             "message": f"Report {report_code} marked Under Review."
         }
 
-    elif payload.action == "DISMISS":
-        rep.status = "DISMISSED"
-        rep.review_notes = payload.review_notes
+    elif payload.action in ["DISMISS", "DECLINE", "DECLINED"]:
+        rep.status = "DECLINED"
+        rep.review_notes = clean_notes
         current_history.append({
-            "status": "DISMISSED",
+            "status": "DECLINED",
             "timestamp": now.strftime("%d %b %Y, %H:%M IST"),
-            "note": f"Report evaluated and marked resolved/non-actionable: {payload.review_notes}"
+            "note": f"Report declined by Operations Control ({payload.operator_name}). Assessment: {clean_notes}"
         })
         rep.status_history = current_history
         db.commit()
 
+        sync_to_postgres("DECLINED", clean_notes)
+
         return {
             "status": "SUCCESS",
-            "action": "DISMISSED",
-            "message": f"Report {report_code} dismissed with reason."
+            "action": "DECLINED",
+            "message": f"Report {report_code} declined with operator notes and removed from active review queue."
         }
 
     return {"status": "ERROR", "message": "Unknown action"}

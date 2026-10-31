@@ -102,7 +102,7 @@ export interface PublicIncidentReport {
   reporter_contact?: string;
   attachment_url?: string;
   attachments?: CitizenEvidenceAttachment[];
-  status: 'SUBMITTED' | 'UNDER_REVIEW' | 'VERIFIED' | 'DISMISSED' | 'PENDING';
+  status: 'SUBMITTED' | 'UNDER_REVIEW' | 'VERIFIED' | 'DISMISSED' | 'DECLINED' | 'PENDING';
   review_notes?: string;
   status_history?: Array<{
     status: string;
